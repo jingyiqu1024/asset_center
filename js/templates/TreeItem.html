@@ -1,0 +1,32 @@
+            <div class="select-none">
+                <div 
+                    @click="handleClick"
+                    :class="['flex items-center gap-2 px-3 py-1.5 my-0.5 rounded-md cursor-pointer transition-colors text-sm group',
+                        isSelected 
+                        ? 'bg-indigo-600 text-white font-medium' 
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200']"
+                    :style="{ paddingLeft: (depth * 12 + 12) + 'px' }"
+                >
+                    <span 
+                        v-if="node.type === 'CATALOG'" 
+                        @click.stop="toggle"
+                        class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700/50"
+                    >
+                        <i :class="['ph ph-caret-right transition-transform text-xs', isOpen ? 'rotate-90' : '']"></i>
+                    </span>
+                    <span v-else class="w-4"></span>
+                    <i :class="['ph text-lg', nodeIcon, isSelected ? 'text-white' : iconColor]"></i>
+                    <span class="truncate flex-1">{{ node.name }}</span>
+                </div>
+                <div v-if="isOpen && node.children && node.children.length > 0">
+                    <tree-item 
+                        v-for="child in node.children" 
+                        :key="child.id" 
+                        :node="child"
+                        :depth="depth + 1"
+                        :selected-id="selectedId"
+                        @select="$emit('select', $event)"
+                        @toggle="$emit('toggle', $event)"
+                    ></tree-item>
+                </div>
+            </div>

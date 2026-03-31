@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试创建向导</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 p-8">
+    <div id="app">
+        <button @click="openWizard" class="px-4 py-2 bg-indigo-600 text-white rounded">
+            打开创建向导
+        </button>
+        
+        <create-data-asset-wizard 
+            :visible="showWizard"
+            :step="step"
+            :method="method"
+            :form="form"
+            :data-source-tables="dataTables"
+            @close="showWizard = false"
+            @select-method="method = $event; step = 2"
+            @select-table="selectTable"
+            @update:form="form = $event"
+            @update-field-description="updateFieldDesc"
+            @preview="step = 4"
+            @save="save"
+        />
+    </div>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="./js/templates.js?v=5"></script>
+    <script>
+    const { createApp, ref } = Vue;
+    
+    // 定义组件
+    const CreateDataAssetWizard = {
+        name: 'CreateDataAssetWizard',
+        template: window.AppTemplates.CreateDataAssetWizard,
+        props: {
+            visible: { type: Boolean, default: false },
+            step: { type: Number, default: 1 },
+            method: { type: String, default: null },
+            form: { type: Object, required: true },
+            dataSourceTables: { type: Object, default: () => ({}) }
+        },
+        emits: ['close', 'select-method', 'select-table', 'update:form', 'update-field-description', 'preview', 'save'],
+        data() {
+            return {
+                showCatalogDropdown: false,
+                previewData: null,
+                tableSearchQuery: ''
+            };
+        },
+        computed: {
+            filteredTables() {
+                if (!this.form?.dataSource || !this.dataSourceTables?.[this.form.dataSource]) {
+                    return [];
+                }
+                const tables = this.dataSourceTables[this.form.dataSource];
+                if (!this.tableSearchQuery?.trim()) {
+                    return tables;
+                }
+                const query = this.tableSearchQuery.toLowerCase();
+                return tables.filter(t => 
+                    t?.name?.toLowerCase().includes(query) || 
+                    t?.description?.toLowerCase().includes(query)
+                );
+            }
+        },
+        methods: {
+            handleClose() {
+                console.log('handleClose called');
+                this.$emit('close');
+            },
+            handleSelectMethod(method) {
+                console.log('handleSelectMethod called:', method);
+                this.$emit('select-method', method);
+            },
+            handlePreview() {
+                console.log('handlePreview called');
+                if (this.method === 'VIEW') {
+                    this.previewData = {
+                        columns: ['id', 'name', 'dept'],
+                        rows: [['1', 'Alice', 'Eng'], ['2', 'Bob', 'HR']]
+                    };
+                } else if (this.method === 'ONLINE') {
+                    this.$emit('preview');
+                }
+            },
+            handleSave() {
+                console.log('handleSave called');
+                this.$emit('save');
+            },
+            isTableSelected(table) {
+                return this.form?.selectedTable?.name === table?.name;
+            },
+            selectCatalog(catalog) {
+                console.log('selectCatalog called:', catalog);
+                this.$emit('update:form', {...this.form, targetCatalog: catalog});
+                this.showCatalogDropdown = false;
+            },
+            handleCreateNewCatalog() {
+                console.log('handleCreateNewCatalog called');
+                const name = prompt('输入新目录名');
+                if (name) {
+                    const newCatalog = { id: 'new_' + Date.now(), name };
+                    this.selectCatalog(newCatalog);
+                }
+            }
+        }
+    };
+    
+    // 创建应用
+    const app = createApp({
+        components: {
+            'create-data-asset-wizard': CreateDataAssetWizard
+        },
+        setup() {
+            const showWizard = ref(false);
+            const step = ref(1);
+            const method = ref(null);
+            const form = ref({
+                name: '',
+                description: '',
+                targetCatalog: null,
+                viewSql: '',
+                dataSource: '',
+                selectedTable: null,
+                tableMetadata: null
+            });
+            
+            const dataTables = ref({
+                mysql: [
+                    {
+                        name: 'users',
+                        description: '用户表',
+                        fields: [
+                            { name: 'id', type: 'INT', isPrimary: true, description: '用户ID', stats: '10000条' },
+                            { name: 'name', type: 'VARCHAR', description: '用户名', stats: '唯一' }
+                        ]
+                    }
+                ],
+                tiangong: [],
+                datahub: []
+            });
+            
+            const openWizard = () => {
+                console.log('openWizard called');
+                showWizard.value = true;
+                step.value = 1;
+                method.value = null;
+                form.value = {
+                    name: '',
+                    description: '',
+                    targetCatalog: null,
+                    viewSql: '',
+                    dataSource: '',
+                    selectedTable: null,
+                    tableMetadata: null
+                };
+            };
+            
+            const selectMethod = (m) => {
+                console.log('selectMethod called:', m);
+                method.value = m;
+                step.value = 2;
+            };
+            
+            const selectTable = (table) => {
+                console.log('selectTable called:', table);
+                form.value.selectedTable = table;
+                form.value.tableMetadata = {
+                    ...table,
+                    fields: table.fields.map(f => ({...f}))
+                };
+                step.value = 3;
+            };
+            
+            const updateFieldDesc = (fieldName, newDesc) {
+                console.log('updateFieldDesc called:', fieldName, newDesc);
+                const field = form.value.tableMetadata?.fields.find(f => f.name === fieldName);
+                if (field) {
+                    field.description = newDesc;
+                }
+            };
+            
+            const save = () => {
+                console.log('save called, form:', form.value);
+                alert('创建成功！');
+                showWizard.value = false;
+            };
+            
+            const closeWizard = () => {
+                console.log('closeWizard called');
+                showWizard.value = false;
+            };
+            
+            return {
+                showWizard,
+                step,
+                method,
+                form,
+                dataTables,
+                openWizard,
+                selectMethod,
+                selectTable,
+                updateFieldDesc,
+                save,
+                closeWizard
+            };
+        }
+    });
+    
+    app.mount('#app');
+    </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>完整测试</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 p-8">
+    <div id="status" class="bg-white p-4 rounded shadow mb-4">
+        <h2 class="font-bold">加载状态：</h2>
+        <div id="log"></div>
+    </div>
+    
+    <div id="app">
+        <button @click="showWizard = true" class="px-4 py-2 bg-blue-500 text-white rounded">
+            打开向导
+        </button>
+        
+        <create-data-asset-wizard 
+            :visible="showWizard"
+            :step="1"
+            :method="null"
+            :form="form"
+            :data-source-tables="{}"
+            @close="showWizard = false"
+        />
+    </div>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        const log = document.getElementById('log');
+        function addLog(msg, isError = false) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            p.style.color = isError ? 'red' : 'green';
+            log.appendChild(p);
+            console.log(msg);
+        }
+        
+        addLog('1. 开始加载...');
+    </script>
+    
+    <script src="./js/templates.js"></script>
+    <script>
+        addLog('2. templates.js 已加载');
+        addLog('   - AppTemplates 存在: ' + (!!window.AppTemplates));
+        if (window.AppTemplates?.CreateDataAssetWizard) {
+            addLog('   - CreateDataAssetWizard 模板: ' + window.AppTemplates.CreateDataAssetWizard.length + ' 字符');
+        }
+    </script>
+    
+    <script>
+        // 手动定义组件，避免依赖 bundle.js
+        const { createApp, ref } = Vue;
+        
+        addLog('3. 开始定义组件...');
+        
+        const CreateDataAssetWizard = {
+            name: 'CreateDataAssetWizard',
+            props: {
+                visible: { type: Boolean, default: false },
+                step: { type: Number, default: 1 },
+                method: { type: String, default: null },
+                form: { type: Object, default: () => ({}) },
+                dataSourceTables: { type: Object, default: () => ({}) }
+            },
+            emits: ['close'],
+            data() {
+                return {
+                    showCatalogDropdown: false,
+                    previewData: null,
+                    tableSearchQuery: ''
+                };
+            },
+            computed: {
+                filteredTables() {
+                    return [];
+                }
+            },
+            methods: {
+                handleClose() {
+                    this.$emit('close');
+                },
+                handleSelectMethod() {},
+                handlePreview() {},
+                handleSave() {},
+                isTableSelected() { return false; },
+                selectCatalog() {},
+                handleCreateNewCatalog() {}
+            },
+            template: window.AppTemplates?.CreateDataAssetWizard || '<div>模板未加载</div>'
+        };
+        
+        addLog('4. 组件定义完成');
+        
+        try {
+            const app = createApp({
+                components: {
+                    'create-data-asset-wizard': CreateDataAssetWizard
+                },
+                setup() {
+                    const showWizard = ref(false);
+                    const form = ref({
+                        name: '',
+                        description: '',
+                        targetCatalog: null,
+                        dataSource: ''
+                    });
+                    
+                    return { showWizard, form };
+                }
+            });
+            
+            addLog('5. Vue 应用创建成功');
+            
+            app.mount('#app');
+            addLog('6. ✓ Vue 应用挂载成功！', false);
+            
+        } catch (e) {
+            addLog('✗ 错误: ' + e.message, true);
+            console.error(e);
+        }
+    </script>
+</body>
+</html>

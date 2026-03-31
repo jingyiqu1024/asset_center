@@ -1,0 +1,79 @@
+            <div class="select-none">
+                <div 
+                    @click="handleClick"
+                    :class="['flex items-center gap-2 px-3 py-1.5 my-0.5 rounded-md cursor-pointer transition-colors text-sm group',
+                        isSelected 
+                        ? 'bg-indigo-600 text-white font-medium' 
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200']"
+                    :style="{ paddingLeft: (depth * 12 + 12) + 'px' }"
+                >
+                    <span 
+                        v-if="node.type === 'CATALOG'" 
+                        @click.stop="toggle"
+                        class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700/50"
+                    >
+                        <i :class="['ph ph-caret-right transition-transform text-xs', isOpen ? 'rotate-90' : '']"></i>
+                    </span>
+                    <span v-else class="w-4"></span>
+                    <i :class="['ph text-lg', nodeIcon, isSelected ? 'text-white' : iconColor]"></i>
+                    <span class="truncate flex-1">{{ node.name }}</span>
+                </div>
+                <div v-if="isOpen && node.children && node.children.length > 0">
+                    <tree-item 
+                        v-for="child in node.children" 
+                        :key="child.id" 
+                        :node="child"
+                        :depth="depth + 1"
+                        :selected-id="selectedId"
+                        @select="$emit('select', $event)"
+                        @toggle="$emit('toggle', $event)"
+                    ></tree-item>
+                </div>
+            </div>
+        `,
+        props: {
+            node: Object,
+            depth: { type: Number, default: 0 },
+            selectedId: String
+        },
+        emits: ['select', 'toggle'],
+        setup(props, { emit }) {
+            const isOpen = Vue.computed(() => props.node.isOpen);
+            const isSelected = Vue.computed(() => props.selectedId === props.node.id);
+            const nodeIcon = Vue.computed(() => getNodeIcon(props.node));
+            const iconColor = Vue.computed(() => {
+                if (props.node.type === 'CATALOG') return 'text-slate-500 group-hover:text-slate-300';
+                return getColor(props.node);
+            });
+            const toggle = () => {
+                if (props.node.type === 'CATALOG') props.node.isOpen = !props.node.isOpen;
+            };
+            const handleClick = () => emit('select', props.node);
+            return { isOpen, isSelected, nodeIcon, iconColor, toggle, handleClick };
+        }
+    };
+
+    // DetailWiki 组件
+    const DetailWiki = {
+        name: 'DetailWiki',
+        props: ['node'],
+        template: `
+            <div class="h-full flex flex-col">
+                <div class="h-10 border-b border-slate-200 bg-slate-50 flex items-center px-4 gap-4 text-xs text-slate-500 mb-4 flex-shrink-0">
+                    <button class="hover:text-slate-800 flex items-center gap-1"><i class="ph ph-list"></i> Outline</button>
+                    <div class="w-px h-4 bg-slate-300"></div>
+                    <button class="hover:text-slate-800"><i class="ph ph-text-b"></i></button>
+                    <button class="hover:text-slate-800"><i class="ph ph-text-i"></i></button>
+                    <button class="hover:text-slate-800"><i class="ph ph-list-bullets"></i></button>
+                    <div class="flex-1"></div>
+                    <span>Last edited today 10:23 AM</span>
+                </div>
+                <div class="flex-1 overflow-y-auto px-8 py-4 w-full bg-white">
+                    <div class="max-w-3xl mx-auto">
+                        <h1 class="text-3xl font-bold text-slate-900 mb-6">{{ node.name }}</h1>
+                        <div class="prose prose-slate max-w-none">
+                            <p class="text-lg text-slate-600 mb-4">This is a simulated Wiki content area.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>模板测试</title>
+</head>
+<body>
+    <h1>模板加载测试</h1>
+    <div id="result"></div>
+    
+    <script src="./js/templates.js"></script>
+    <script>
+        const resultDiv = document.getElementById('result');
+        let html = '';
+        
+        html += '<h2>window.AppTemplates 是否存在？</h2>';
+        html += '<p>' + (typeof window.AppTemplates !== 'undefined' ? '✓ 存在' : '✗ 不存在') + '</p>';
+        
+        if (window.AppTemplates) {
+            html += '<h2>包含的模板：</h2><ul>';
+            for (let key in window.AppTemplates) {
+                const template = window.AppTemplates[key];
+                html += '<li><strong>' + key + '</strong>: ';
+                html += (typeof template === 'string' ? template.length + ' 字符' : typeof template);
+                html += '</li>';
+            }
+            html += '</ul>';
+            
+            if (window.AppTemplates.CreateDataAssetWizard) {
+                html += '<h2>CreateDataAssetWizard 模板预览（前100字符）：</h2>';
+                html += '<pre style="background:#f5f5f5;padding:10px;overflow:auto;">';
+                html += window.AppTemplates.CreateDataAssetWizard.substring(0, 200);
+                html += '...</pre>';
+            }
+        }
+        
+        resultDiv.innerHTML = html;
+        
+        console.log('AppTemplates:', window.AppTemplates);
+    </script>
+</body>
+</html>

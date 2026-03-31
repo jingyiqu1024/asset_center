@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Step 诊断</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 p-8">
+    <div id="app">
+        <div class="bg-white p-6 rounded-lg shadow mb-4">
+            <h2 class="text-xl font-bold mb-4">当前状态</h2>
+            <div class="space-y-2 text-sm font-mono">
+                <div>Step: <span class="font-bold text-indigo-600">{{ step }}</span></div>
+                <div>Method: <span class="font-bold">{{ method }}</span></div>
+                <div>Data Source: <span class="font-bold">{{ form.dataSource }}</span></div>
+                <div>Selected Table: <span class="font-bold">{{ form.selectedTable?.name || 'null' }}</span></div>
+                <div>Table Metadata: <span class="font-bold">{{ form.tableMetadata ? 'exists' : 'null' }}</span></div>
+            </div>
+        </div>
+        
+        <div class="space-x-2">
+            <button @click="step = 1" class="px-4 py-2 bg-blue-500 text-white rounded">Step 1</button>
+            <button @click="step = 2; method = 'ONLINE'" class="px-4 py-2 bg-blue-500 text-white rounded">Step 2 (ONLINE)</button>
+            <button @click="step = 3" class="px-4 py-2 bg-blue-500 text-white rounded">Step 3</button>
+            <button @click="step = 4" class="px-4 py-2 bg-blue-500 text-white rounded">Step 4</button>
+            <button @click="form.dataSource = 'tiangong'" class="px-4 py-2 bg-green-500 text-white rounded">选择天工</button>
+            <button @click="selectTable()" class="px-4 py-2 bg-green-500 text-white rounded">选择表</button>
+        </div>
+        
+        <create-data-asset-wizard 
+            :visible="true"
+            :step="step"
+            :method="method"
+            :form="form"
+            :data-source-tables="dataTables"
+            @close="console.log('close')"
+            @select-method="method = $event; step = 2"
+            @select-table="selectTableHandler"
+            @update:form="form = $event"
+            @update-field-description="console.log('update field', arguments)"
+            @preview="step = 4"
+            @save="console.log('save')"
+        />
+    </div>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="./js/templates.js"></script>
+    <script src="./js/bundle.js"></script>
+    <script>
+    const { createApp, ref } = Vue;
+    
+    const app = createApp({
+        components: {
+            'create-data-asset-wizard': window.App.Components?.CreateDataAssetWizard || CreateDataAssetWizard
+        },
+        setup() {
+            const step = ref(1);
+            const method = ref(null);
+            const form = ref({
+                name: '',
+                description: '',
+                targetCatalog: null,
+                viewSql: '',
+                dataSource: '',
+                selectedTable: null,
+                tableMetadata: null
+            });
+            
+            const dataTables = ref({
+                tiangong: [
+                    {
+                        name: 'raw.users',
+                        description: '用户基础表',
+                        fields: [
+                            { name: 'id', type: 'BIGINT', description: '用户ID', isPrimary: true, stats: '唯一值' },
+                            { name: 'username', type: 'VARCHAR', description: '用户名', isPrimary: false, stats: '唯一值' }
+                        ]
+                    }
+                ]
+            });
+            
+            const selectTable = () => {
+                form.value.selectedTable = dataTables.value.tiangong[0];
+                form.value.tableMetadata = {
+                    ...dataTables.value.tiangong[0],
+                    fields: dataTables.value.tiangong[0].fields.map(f => ({...f}))
+                };
+                step.value = 3;
+                console.log('已选择表，step = 3');
+            };
+            
+            const selectTableHandler = (table) => {
+                console.log('selectTableHandler called:', table);
+                form.value.selectedTable = table;
+                form.value.tableMetadata = {
+                    ...table,
+                    fields: table.fields.map(f => ({...f}))
+                };
+                step.value = 3;
+            };
+            
+            return {
+                step,
+                method,
+                form,
+                dataTables,
+                selectTable,
+                selectTableHandler
+            };
+        }
+    });
+    
+    app.mount('#app');
+    </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>强制刷新</title>
+</head>
+<body>
+    <h1>正在清理缓存...</h1>
+    <div id="status"></div>
+    <script>
+        const statusDiv = document.getElementById('status');
+        
+        async function clearEverything() {
+            const logs = [];
+            
+            // 1. 清除所有 Service Workers
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        logs.push('✓ 已卸载 Service Worker');
+                    }
+                } catch (e) {
+                    logs.push('Service Worker 清理失败: ' + e.message);
+                }
+            }
+            
+            // 2. 清除所有缓存
+            if ('caches' in window) {
+                try {
+                    const names = await caches.keys();
+                    await Promise.all(names.map(name => caches.delete(name)));
+                    logs.push(`✓ 已删除 ${names.length} 个缓存`);
+                } catch (e) {
+                    logs.push('Cache 清理失败: ' + e.message);
+                }
+            }
+            
+            // 3. 清除 localStorage
+            try {
+                localStorage.clear();
+                logs.push('✓ 已清除 localStorage');
+            } catch (e) {
+                logs.push('localStorage 清理失败: ' + e.message);
+            }
+            
+            // 4. 清除 sessionStorage
+            try {
+                sessionStorage.clear();
+                logs.push('✓ 已清除 sessionStorage');
+            } catch (e) {
+                logs.push('sessionStorage 清理失败: ' + e.message);
+            }
+            
+            // 5. 清除 IndexedDB
+            if ('indexedDB' in window) {
+                try {
+                    const databases = await indexedDB.databases();
+                    for (let db of databases) {
+                        indexedDB.deleteDatabase(db.name);
+                    }
+                    logs.push(`✓ 已清除 ${databases.length} 个 IndexedDB 数据库`);
+                } catch (e) {
+                    logs.push('IndexedDB 清理可能失败: ' + e.message);
+                }
+            }
+            
+            statusDiv.innerHTML = logs.join('<br>') + '<br><br><strong>清理完成！请关闭此页面。</strong>';
+            
+            // 等待3秒后自动跳转到主页
+            setTimeout(() => {
+                statusDiv.innerHTML += '<br><br>3秒后将跳转到主页...';
+                setTimeout(() => {
+                    window.location.href = '/index.html?t=' + Date.now();
+                }, 3000);
+            }, 1000);
+        }
+        
+        clearEverything();
+    </script>
+</body>
+</html>

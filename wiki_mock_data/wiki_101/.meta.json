@@ -1,0 +1,110 @@
+{
+  "id": "wiki_101",
+  "name": "2024 员工手册",
+  "description": "公司员工入职指南、规章制度、福利政策等完整手册",
+  "icon": "📖",
+  "author": "hr_admin",
+  "createdAt": "2024-01-01T10:00:00Z",
+  "updatedAt": "2024-01-15T16:30:00Z",
+  "version": "1.2.0",
+  "navigation": [
+    {
+      "id": "page_welcome",
+      "title": "欢迎",
+      "parentId": null,
+      "file": "docs/index.md",
+      "order": 0
+    },
+    {
+      "id": "section_getting_started",
+      "title": "入门指南",
+      "parentId": null,
+      "isFolder": true,
+      "order": 1
+    },
+    {
+      "id": "page_onboarding",
+      "title": "入职流程",
+      "parentId": "section_getting_started",
+      "file": "docs/onboarding.md",
+      "order": 0
+    },
+    {
+      "id": "page_first_day",
+      "title": "第一天须知",
+      "parentId": "section_getting_started",
+      "file": "docs/first-day.md",
+      "order": 1
+    },
+    {
+      "id": "page_tools",
+      "title": "工具与系统",
+      "parentId": "section_getting_started",
+      "file": "docs/tools.md",
+      "order": 2
+    },
+    {
+      "id": "section_policies",
+      "title": "公司政策",
+      "parentId": null,
+      "isFolder": true,
+      "order": 2
+    },
+    {
+      "id": "page_attendance",
+      "title": "考勤制度",
+      "parentId": "section_policies",
+      "file": "docs/attendance.md",
+      "order": 0
+    },
+    {
+      "id": "page_leave",
+      "title": "请假管理",
+      "parentId": "section_policies",
+      "file": "docs/leave.md",
+      "order": 1
+    },
+    {
+      "id": "page_benefits",
+      "title": "福利待遇",
+      "parentId": "section_policies",
+      "file": "docs/benefits.md",
+      "order": 2
+    },
+    {
+      "id": "section_development",
+      "title": "职业发展",
+      "parentId": null,
+      "isFolder": true,
+      "order": 3
+    },
+    {
+      "id": "page_career_path",
+      "title": "晋升通道",
+      "parentId": "section_development",
+      "file": "docs/career-path.md",
+      "order": 0
+    },
+    {
+      "id": "page_training",
+      "title": "培训体系",
+      "parentId": "section_development",
+      "file": "docs/training.md",
+      "order": 1
+    },
+    {
+      "id": "page_faq",
+      "title": "常见问题",
+      "parentId": null,
+      "file": "docs/faq.md",
+      "order": 4
+    }
+  ],
+  "settings": {
+    "public": false,
+    "allowComments": true,
+    "allowExport": true,
+    "theme": "default"
+  },
+  "tags": ["HR", "入职", "政策", "员工手册"]
+}

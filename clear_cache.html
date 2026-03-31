@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>清除缓存</title>
+</head>
+<body>
+    <h1>缓存已清除</h1>
+    <p>请<a href="/">点击这里</a>返回主页</p>
+    <script>
+        // 清除所有缓存
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names) {
+                    caches.delete(name);
+                }
+            });
+        }
+        // 清除 localStorage 和 sessionStorage
+        localStorage.clear();
+        sessionStorage.clear();
+        console.log('所有缓存已清除');
+    </script>
+</body>
+</html>

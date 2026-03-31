@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>诊断页面</title>
+</head>
+<body>
+    <h1>诊断信息</h1>
+    <div id="info"></div>
+    
+    <script>
+        const info = document.getElementById('info');
+        let html = '<h2>检查变量是否存在：</h2><ul>';
+        
+        // 检查可能的问题变量
+        const varsToCheck = [
+            'selectableAssetType',
+            'Vue',
+            'window.AppTemplates',
+            'window.App'
+        ];
+        
+        varsToCheck.forEach(varName => {
+            try {
+                const exists = eval('typeof ' + varName) !== 'undefined';
+                html += `<li><strong>${varName}:</strong> ${exists ? '✓ 存在' : '✗ 不存在'}</li>`;
+            } catch (e) {
+                html += `<li><strong>${varName}:</strong> ❌ 错误: ${e.message}</li>`;
+            }
+        });
+        
+        html += '</ul>';
+        
+        // 检查加载的脚本
+        html += '<h2>已加载的脚本：</h2><ul>';
+        const scripts = document.getElementsByTagName('script');
+        for (let i = 0; i < scripts.length; i++) {
+            if (scripts[i].src) {
+                html += `<li>${scripts[i].src}</li>`;
+            }
+        }
+        html += '</ul>';
+        
+        info.innerHTML = html;
+        
+        // 在控制台输出
+        console.log('=== 诊断信息 ===');
+        console.log('window.AppTemplates:', window.AppTemplates);
+        console.log('window.App:', window.App);
+    </script>
+    
+    <!-- 加载主页的脚本 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="./js/mock_data.js?v=1769594253"></script>
+    <script src="./js/utils.js?v=1769594253"></script>
+    <script src="./js/templates.js?v=1769594253"></script>
+    
+    <script>
+        // 延迟检查，确保脚本加载完成
+        setTimeout(() => {
+            console.log('=== 延迟检查 ===');
+            console.log('window.AppTemplates:', window.AppTemplates);
+            console.log('Vue:', typeof Vue);
+            
+            if (window.AppTemplates && window.AppTemplates.CreateDataAssetWizard) {
+                console.log('✓ CreateDataAssetWizard 模板已加载');
+                console.log('模板长度:', window.AppTemplates.CreateDataAssetWizard.length);
+            } else {
+                console.log('✗ CreateDataAssetWizard 模板未加载');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

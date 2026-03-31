@@ -1,0 +1,517 @@
+<div class="h-full flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden relative">
+    <!-- Header Info & Actions -->
+    <div class="px-6 py-5 border-b border-slate-200 bg-white flex items-center justify-between flex-shrink-0">
+        <!-- Left: Table Information -->
+        <div>
+            <div class="flex items-center gap-2 group mb-1">
+                <h2 class="text-xl font-bold text-slate-900 font-mono tracking-tight">{{ node?.name }}</h2>
+                <button @click.stop="copyToClipboard(node?.name)"
+                    class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+                    title="复制表名">
+                    <i class="ph ph-copy text-lg"></i>
+                </button>
+            </div>
+            <div class="flex items-center gap-2 text-sm text-slate-500">
+                <span>{{ node?.chineseName || '未设置中文名' }}</span>
+                <span v-if="node?.sourceType === 'VIEW'" class="text-slate-300">|</span>
+                <span v-if="node?.sourceType === 'VIEW'" class="text-slate-400">SQL 视图</span>
+            </div>
+        </div>
+
+        <!-- Right: Actions -->
+        <div class="flex items-center gap-4">
+            <!-- Version Selector -->
+            <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Version</span>
+                <div class="relative" @click.stop>
+                    <button @click.stop="showVersionDropdown = !showVersionDropdown"
+                        class="px-2.5 py-1 bg-white border border-slate-200 rounded text-sm font-mono text-slate-700 hover:border-indigo-300 transition-colors flex items-center gap-2 shadow-sm">
+                        <span class="font-bold">{{ currentVersion.version }}</span>
+                        <!-- Environment Badges -->
+                        <span v-if="currentVersion.environments.online === currentVersion.version"
+                            class="w-2 h-2 rounded-full bg-green-500" title="生产"></span>
+                        <span v-if="currentVersion.environments.pre === currentVersion.version"
+                            class="w-2 h-2 rounded-full bg-blue-500" title="预发"></span>
+                        <span v-if="currentVersion.environments.test === currentVersion.version"
+                            class="w-2 h-2 rounded-full bg-purple-500" title="测试"></span>
+                        <i class="ph ph-caret-down text-xs text-slate-400"></i>
+                    </button>
+                    <!-- Dropdown -->
+                    <div v-if="showVersionDropdown" @click.stop
+                        class="absolute top-full right-0 mt-2 z-50 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden min-w-[240px] max-h-80 overflow-y-auto ring-1 ring-black/5">
+                        <div v-for="v in getAllVersions()" :key="v.version" @click="switchVersion(v)"
+                            :class="['px-4 py-2.5 text-sm cursor-pointer hover:bg-slate-50 flex items-center justify-between gap-3 border-b border-slate-50 last:border-0', currentVersion.version === v.version ? 'bg-indigo-50/50' : '']">
+                            <div class="flex items-center gap-2">
+                                <span
+                                    :class="['font-mono font-medium', currentVersion.version === v.version ? 'text-indigo-600' : 'text-slate-700']">{{
+                                    v.version }}</span>
+                                <i v-if="currentVersion.version === v.version"
+                                    class="ph-fill ph-check-circle text-indigo-600"></i>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span v-if="v.environments.online === v.version"
+                                    class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold uppercase tracking-wide">PROD</span>
+                                <span v-if="v.environments.pre === v.version"
+                                    class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold uppercase tracking-wide">Pre</span>
+                                <span v-if="v.environments.test === v.version"
+                                    class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-bold uppercase tracking-wide">Test</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Publish Button -->
+            <button @click="openVersionPublish"
+                class="h-10 px-5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-200 transition-all flex items-center gap-2">
+                <i class="ph ph-rocket-launch text-lg"></i>
+                <span>发布</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex border-b border-slate-200 bg-slate-50/80 flex-shrink-0">
+        <button @click="dataActiveTab = 'schema'"
+            :class="['px-5 py-3 text-sm font-medium border-b-2 transition-colors', dataActiveTab === 'schema' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700']">
+            <i class="ph ph-list-bullets mr-1.5"></i>字段信息
+        </button>
+        <button v-if="node?.sourceType !== 'EXCEL'" @click="dataActiveTab = 'ddl'"
+            :class="['px-5 py-3 text-sm font-medium border-b-2 transition-colors', dataActiveTab === 'ddl' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700']">
+            <i class="ph ph-file-sql mr-1.5"></i>建表语句
+        </button>
+
+        <button @click="dataActiveTab = 'auth_rules'"
+            :class="['px-5 py-3 text-sm font-medium border-b-2 transition-colors', dataActiveTab === 'auth_rules' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700']">
+            <i class="ph ph-shield-check mr-1.5"></i>权限规则
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-auto p-5">
+        <div v-show="dataActiveTab === 'schema'" class="space-y-5">
+            <p class="text-sm text-slate-500">
+                {{ node?.sourceType === 'EXCEL' ? '通过本地文件上传，支持对字段描述、治理标签进行编辑。' : '通过 SQL
+                视图注册进入，仅支持对已有字段的描述、治理标签、分区标记等进行修改。' }}
+            </p>
+            <!-- 表描述 -->
+            <div class="flex items-start gap-3 p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                <div class="flex-1 min-w-0">
+                    <label class="text-xs font-semibold text-slate-500 uppercase mb-1 block">表描述</label>
+                    <p class="text-sm text-slate-800">{{ tableDescription || '—' }}</p>
+                </div>
+                <button @click="openTableDescEdit" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded"><i
+                        class="ph ph-pencil-simple text-sm"></i></button>
+            </div>
+            <!-- 表统计信息 -->
+            <div class="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                <label class="text-xs font-semibold text-slate-500 uppercase mb-2 block">统计信息</label>
+                <pre class="text-xs text-slate-700 whitespace-pre-wrap font-sans">{{ tableStatistics }}</pre>
+            </div>
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+                <table class="min-w-full">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">字段名</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">类型</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">描述</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">
+                                治理标签</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">加密</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">分区</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">统计信息</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase w-20">操作
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <tr v-for="(f, i) in schemaFields" :key="i" class="hover:bg-slate-50/50">
+                            <td class="px-4 py-3 text-sm font-mono text-slate-800">{{ f.name }}</td>
+                            <td class="px-4 py-3 text-sm text-slate-600">{{ f.type }}</td>
+                            <td class="px-4 py-3 text-sm text-slate-600">{{ f.description }}</td>
+                            <td class="px-4 py-3">
+                                <div v-if="f.governed_tag" class="relative inline-block group">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 cursor-default">
+                                        {{ getTagShortName(f.governed_tag) }}
+                                        <span v-if="hasLinkedDict(f.governed_tag)"
+                                            class="inline-flex items-center gap-1 text-cyan-600">
+                                            <i class="ph ph-link text-xs"></i>
+                                        </span>
+                                    </span>
+                                    <!-- Hover 显示完整路径 -->
+                                    <div
+                                        class="absolute left-0 top-full mt-1 z-50 hidden group-hover:block min-w-max max-w-md p-2.5 bg-slate-800 text-slate-100 rounded-lg shadow-xl text-xs">
+                                        <p class="font-medium text-slate-200 mb-1">完整路径</p>
+                                        <p class="text-slate-300 font-mono">{{ f.governed_tag }}</p>
+                                        <div v-if="hasLinkedDict(f.governed_tag)"
+                                            class="mt-2 pt-2 border-t border-slate-600">
+                                            <p class="text-slate-400 mb-1">关联字典</p>
+                                            <button @click="navigateToDict(getLinkedDict(f.governed_tag))"
+                                                class="text-cyan-400 hover:text-cyan-300 underline font-mono">
+                                                {{ getLinkedDict(f.governed_tag) }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span v-else class="text-slate-400 text-sm">—</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span v-if="f.is_encrypted"
+                                    class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-800">
+                                    <i class="ph ph-lock text-xs mr-1"></i>是
+                                </span>
+                                <span v-else class="text-slate-400 text-sm">—</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div v-if="f.is_partition" class="relative inline-block"
+                                    @mouseenter="hoverPartitionIndex = i" @mouseleave="hoverPartitionIndex = null">
+                                    <span
+                                        class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-800 cursor-default">是</span>
+                                    <div v-if="hoverPartitionIndex === i && partitionInfo"
+                                        class="absolute left-0 top-full mt-1 z-50 min-w-[260px] p-3 bg-slate-800 text-slate-100 rounded-lg shadow-xl text-xs">
+                                        <p class="font-medium text-slate-200 mb-2">分区信息</p>
+                                        <p><span class="text-slate-400">分区数据格式：</span>{{ partitionInfo.partition_format
+                                            }}</p>
+                                        <p class="mt-1"><span class="text-slate-400">全量/增量：</span>{{
+                                            partitionInfo.partition_mode === 'full' ? '全量镜像' : '增量' }}</p>
+                                        <p class="mt-1 text-slate-300">全量：<code
+                                                class="bg-slate-700 px-1 rounded">WHERE {{ partitionInfo.partition_field }}=datetime_value</code>
+                                        </p>
+                                        <p class="mt-0.5 text-slate-300">增量：<code
+                                                class="bg-slate-700 px-1 rounded">WHERE {{ partitionInfo.partition_field }}&lt;datetime_value</code>
+                                        </p>
+                                    </div>
+                                </div>
+                                <span v-else class="text-slate-400 text-sm">—</span>
+                            </td>
+                            <td class="px-4 py-3 text-xs text-slate-600">
+                                <pre v-if="f.fieldStatistics"
+                                    class="whitespace-pre-wrap font-sans">{{ f.fieldStatistics }}</pre>
+                                <span v-else class="text-slate-400">—</span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <button @click="openFieldEdit(i)" class="text-slate-400 hover:text-indigo-600 p-1"><i
+                                        class="ph ph-pencil-simple text-sm"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab: 建表语句 -->
+        <div v-show="dataActiveTab === 'ddl'" class="space-y-4">
+            <!-- 提示条 - 简洁化 -->
+            <div
+                class="flex items-center gap-2 px-4 py-3 bg-blue-50/50 text-blue-700 rounded-lg border border-blue-100/50">
+                <i class="ph ph-info-semibold text-lg"></i>
+                <p class="text-sm">来自 SQL 视图注册的建表/视图语句。修改将影响资产解析，请谨慎操作。</p>
+            </div>
+
+            <!-- 建表语句主体 - 按钮移入此处 -->
+            <div class="relative group">
+                <!-- 悬浮工具栏 (放在代码块内部右上角) -->
+                <div
+                    class="absolute top-3 right-3 z-10 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
+                    <button @click="copyToClipboard(ddlStatement)"
+                        class="w-8 h-8 flex items-center justify-center bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700/50 backdrop-blur-sm transition-all"
+                        title="复制语句">
+                        <i class="ph ph-copy text-base"></i>
+                    </button>
+                    <button @click="openDdlEdit"
+                        class="w-8 h-8 flex items-center justify-center bg-slate-800/80 hover:bg-red-900/40 text-slate-300 hover:text-white rounded-md border border-slate-700/50 backdrop-blur-sm transition-all"
+                        title="修改建表语句">
+                        <i class="ph ph-pencil-simple-line text-base"></i>
+                    </button>
+                </div>
+
+                <!-- SQL 内容 -->
+                <div class="rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-xl">
+                    <div
+                        class="flex items-center justify-between px-4 py-2 bg-slate-800/50 border-b border-slate-700/50">
+                        <div class="flex items-center gap-2">
+                            <div class="flex gap-1">
+                                <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
+                            </div>
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">SQL
+                                Editor</span>
+                        </div>
+                        <span class="text-[10px] text-slate-500 font-mono">{{ ddlStatement.split('\n').length }}
+                            lines</span>
+                    </div>
+                    <pre
+                        class="p-5 text-slate-200 text-sm font-mono overflow-x-auto leading-relaxed min-h-[220px] scrollbar-thin scrollbar-thumb-slate-700">{{ ddlStatement }}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修改建表语句 Modal -->
+        <div v-if="showDdlEdit"
+            class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+            <div
+                class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                    <h3 class="text-lg font-bold text-slate-900">修改结构化数据资产</h3>
+                    <button @click="showDdlEdit = false"
+                        class="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-200 rounded-full transition-colors">
+                        <i class="ph ph-x text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                    <!-- 表名 -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">表名</label>
+                        <input v-model="ddlEditForm.name" type="text"
+                            class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="例如：emp_leave_view">
+                    </div>
+
+                    <!-- SQL Editor -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">查询 SQL</label>
+                        <div class="relative">
+                            <textarea v-model="ddlEditForm.sql" rows="10"
+                                class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                placeholder="SELECT id, name, department, status, joined_at, dt&#10;FROM raw.emp_leave&#10;WHERE dt >= '20230101';"></textarea>
+                            <div class="mt-2 flex items-center justify-between">
+                                <p class="text-xs text-slate-500">只需编写 SELECT 查询语句</p>
+                                <button @click="runSqlPreview"
+                                    class="px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1.5">
+                                    <i class="ph ph-play"></i>查询
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Results -->
+                    <div v-if="sqlPreviewResult" class="border border-slate-200 rounded-lg overflow-hidden mt-4">
+                        <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                            <span class="text-sm font-medium text-slate-700">预览结果</span>
+                            <span class="text-xs text-slate-500">前 2 行</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-slate-200">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th v-for="col in sqlPreviewResult.columns" :key="col"
+                                            class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">
+                                            {{ col }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200 bg-white">
+                                    <tr v-for="(row, idx) in sqlPreviewResult.rows" :key="idx"
+                                        class="hover:bg-slate-50">
+                                        <td v-for="cell in row" class="px-4 py-3 text-sm text-slate-700">{{ cell }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 放置目录 -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">放置目录</label>
+                        <div class="relative">
+                            <button @click="showCatalogDropdown = !showCatalogDropdown" type="button"
+                                class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-700 hover:border-indigo-300 transition-colors flex items-center justify-between">
+                                <span>{{ ddlEditForm.targetCatalogName || '请选择目录' }}</span>
+                                <i class="ph ph-caret-down text-slate-400"></i>
+                            </button>
+
+                            <div v-if="showCatalogDropdown"
+                                class="absolute bottom-full left-0 right-0 mb-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                                <div class="p-2">
+                                    <div
+                                        class="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                        可选目录</div>
+                                    <div class="space-y-1 mt-1">
+                                        <button v-for="cat in eligibleCatalogs" :key="cat.id"
+                                            @click="selectDdlCatalog(cat)" type="button"
+                                            class="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 rounded flex items-center gap-2 transition-colors"
+                                            :class="{'bg-indigo-50 text-indigo-700 font-medium': ddlEditForm.parentId === cat.id}">
+                                            <i class="ph ph-folder text-yellow-500"></i>
+                                            {{ cat.name }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
+                    <button @click="showDdlEdit = false"
+                        class="px-6 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">取消</button>
+                    <button @click="saveDdlEdit"
+                        class="px-8 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all flex items-center gap-2">
+                        <i class="ph ph-check-circle"></i>
+                        完成修改
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Tab: 权限规则（末端鉴权） -->
+        <div v-show="dataActiveTab === 'auth_rules'" class="space-y-4">
+            <!-- 环境切换 -->
+            <div class="flex items-center justify-between">
+                <div class="flex bg-slate-100 p-1 rounded-lg">
+                    <button @click="activeAuthEnv = 'pre'"
+                        :class="['px-4 py-1.5 text-xs font-bold rounded-md transition-all', activeAuthEnv === 'pre' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
+                        预发环境
+                    </button>
+                    <button @click="activeAuthEnv = 'online'"
+                        :class="['px-4 py-1.5 text-xs font-bold rounded-md transition-all', activeAuthEnv === 'online' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
+                        生产环境
+                    </button>
+                </div>
+            </div>
+
+            <!-- 实时生效提醒 -->
+            <div
+                class="flex items-center gap-2 px-4 py-2.5 bg-amber-50 text-amber-700 rounded-lg border border-amber-100/50">
+                <i class="ph ph-warning-circle text-base"></i>
+                <p class="text-xs font-medium">各环境的权限配置相互独立，变更将实时作用于已发布到该环境的数据表的数据查询结果</p>
+            </div>
+
+            <p class="text-sm text-slate-500">数据资产被执行 / 查询时，按以下规则进行末端鉴权（行级、列级等）。</p>
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+                <table class="min-w-full">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">规则名称</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">授权对象</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">规则来源</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">说明</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase w-20">操作
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <tr v-for="(r, i) in authRules" :key="i" class="hover:bg-slate-50/50">
+                            <td class="px-4 py-3 text-sm font-medium text-slate-800">{{ r.name }}</td>
+                            <td class="px-4 py-3 text-sm text-slate-600">
+                                <span class="inline-flex items-center gap-1">
+                                    <i
+                                        :class="['ph text-xs', r.targetAudience.type === 'individual' ? 'ph-user' : r.targetAudience.type === 'role' ? 'ph-users' : 'ph-buildings']"></i>
+                                    {{ r.targetAudience.value }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span v-if="r.ruleSource === 'custom'" class="text-xs text-slate-600">表专属</span>
+                                <button v-else @click="navigateToRule(r.globalRuleRef)"
+                                    class="text-xs text-cyan-600 hover:text-cyan-700 underline font-mono">
+                                    {{ r.globalRuleRef }}
+                                </button>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-slate-500">{{ formatRuleDescription(r) }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <button @click="openAuthRuleEdit(i)" class="text-slate-400 hover:text-indigo-600 p-1"><i
+                                        class="ph ph-pencil-simple text-sm"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <button @click="openAuthRuleEdit(-1)"
+                class="px-3 py-1.5 bg-slate-50 text-slate-600 text-xs font-medium rounded hover:bg-slate-100">
+                <i class="ph ph-plus"></i> 添加规则
+            </button>
+        </div>
+    </div>
+
+    <!-- 表描述编辑弹层 -->
+    <div v-if="showTableDescEdit" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center"
+        @click.self="showTableDescEdit = false">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="text-base font-semibold text-slate-900">编辑表描述</h3>
+                <button @click="showTableDescEdit = false" class="p-1 text-slate-400 hover:text-slate-600"><i
+                        class="ph ph-x text-lg"></i></button>
+            </div>
+            <div class="p-5">
+                <textarea v-model="tableDescForm" rows="4"
+                    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="请输入表的描述"></textarea>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-200 flex justify-end gap-2">
+                <button @click="showTableDescEdit = false"
+                    class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm">取消</button>
+                <button @click="saveTableDescEdit"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 字段编辑弹层（组件） -->
+    <field-edit-modal :visible="showFieldEdit" :editing-form="editingForm" :editing-field-index="editingFieldIndex"
+        :schema-fields="schemaFields" :governed-tag-tree="governedTagTree" :show-tag-tree-dropdown="showTagTreeDropdown"
+        :tag-tree-expanded="tagTreeExpanded" @close="closeFieldEdit" @save="saveFieldEdit"
+        @update:showTagTreeDropdown="showTagTreeDropdown = $event" @toggleTagTreeNode="toggleTagTreeNode"
+        @selectTagFromTree="selectTagFromTree" @navigateToDict="navigateToDict" />
+
+    <!-- 版本发布弹层 -->
+    <div v-if="showVersionPublish" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center"
+        @click.self="showVersionPublish = false">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 flex flex-col">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                <h3 class="text-base font-semibold text-slate-900">发布版本 · {{ currentVersion.version }}</h3>
+                <button @click="showVersionPublish = false" class="p-1 text-slate-400 hover:text-slate-600">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 flex-1 overflow-y-auto">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">发布到环境</label>
+                    <div class="flex gap-3">
+                        <button @click="publishForm.environment = 'online'"
+                            :class="['px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2', publishForm.environment === 'online' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-300 text-slate-700']">
+                            <i class="ph ph-check-circle" v-if="publishForm.environment === 'online'"></i>
+                            <span>生产</span>
+                        </button>
+                        <button @click="publishForm.environment = 'pre'"
+                            :class="['px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2', publishForm.environment === 'pre' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-300 text-slate-700']">
+                            <i class="ph ph-check-circle" v-if="publishForm.environment === 'pre'"></i>
+                            <span>预发</span>
+                        </button>
+                        <button @click="publishForm.environment = 'test'"
+                            :class="['px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2', publishForm.environment === 'test' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-300 text-slate-700']">
+                            <i class="ph ph-check-circle" v-if="publishForm.environment === 'test'"></i>
+                            <span>测试</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">发布备注</label>
+                    <textarea v-model="publishForm.note"
+                        class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                        rows="4" placeholder="本次发布的说明（可选）"></textarea>
+                </div>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+                <button @click="showVersionPublish = false"
+                    class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm transition-colors">取消</button>
+                <button @click="saveVersionPublish"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                    <i class="ph ph-upload-simple"></i>确认发布
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 权限规则编辑弹层（组件） -->
+    <permission-rule-edit-modal :visible="showAuthRuleEdit" :editing-rule="editingAuthRule"
+        :editing-index="editingAuthRuleIndex" :auth-rules="authRules" :schema-fields="schemaFields"
+        :global-rules="globalRules" :show-audience-dropdown="showAudienceDropdown" @close="closeAuthRuleEdit"
+        @save="saveAuthRuleEdit" @delete="deleteAuthRule" @update:showAudienceDropdown="showAudienceDropdown = $event"
+        @selectAudience="selectAudience" @addRowFilter="addRowFilter" @removeRowFilter="removeRowFilter"
+        @toggleColumnField="toggleColumnField" />
+</div>

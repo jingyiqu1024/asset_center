@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Vue 组件测试</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 p-8">
+    <div id="app">
+        <h1 class="text-2xl font-bold mb-4">Vue 应用状态：{{ mounted ? '✓ 已挂载' : '✗ 未挂载' }}</h1>
+        <button @click="showWizard = !showWizard" class="px-4 py-2 bg-blue-500 text-white rounded mb-4">
+            {{ showWizard ? '关闭' : '打开' }} 向导
+        </button>
+        
+        <div v-if="showWizard" class="bg-white p-4 rounded shadow">
+            <p>向导应该显示在这里...</p>
+        </div>
+        
+        <!-- 简化的向导组件 -->
+        <div v-if="showWizard" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 p-6">
+                <h3 class="text-lg font-bold mb-4">测试向导</h3>
+                <p>Step: {{ step }}</p>
+                <p>Method: {{ method }}</p>
+                <button @click="step++" class="px-4 py-2 bg-indigo-600 text-white rounded">下一步</button>
+                <button @click="showWizard = false" class="px-4 py-2 bg-gray-600 text-white rounded ml-2">关闭</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        const { createApp, ref } = Vue;
+        
+        const app = createApp({
+            setup() {
+                const mounted = ref(true);
+                const showWizard = ref(false);
+                const step = ref(1);
+                const method = ref(null);
+                
+                return {
+                    mounted,
+                    showWizard,
+                    step,
+                    method
+                };
+            }
+        });
+        
+        app.mount('#app');
+        console.log('Vue 应用已挂载');
+    </script>
+</body>
+</html>

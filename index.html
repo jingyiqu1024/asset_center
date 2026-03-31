@@ -1,0 +1,2133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resource Console - Catalog Tree</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* DetailFunction Styles */
+        .detail-function {
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .function-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .function-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            font-family: monospace;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-test {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            background: #6366f1;
+            color: white;
+            transition: all 0.2s;
+        }
+
+        .btn-test:hover {
+            background: #4f46e5;
+        }
+
+        .function-description {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #475569;
+            margin-bottom: 24px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #6366f1;
+        }
+
+        .tab.active {
+            color: #6366f1;
+            border-bottom-color: #6366f1;
+        }
+
+        .tab-content {
+            min-height: 400px;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 12px;
+            font-family: monospace;
+        }
+
+        .info-table,
+        .schema-table,
+        .error-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 14px;
+        }
+
+        .info-table td,
+        .schema-table td,
+        .schema-table th,
+        .error-table td,
+        .error-table th {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-table tr:last-child td,
+        .schema-table tr:last-child td,
+        .error-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .info-table .label {
+            font-weight: 600;
+            color: #64748b;
+            width: 140px;
+            font-family: monospace;
+        }
+
+        .schema-table thead {
+            background: #f8fafc;
+        }
+
+        .schema-table th {
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+        }
+
+        .schema-table code,
+        .error-table code,
+        .info-table code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #334155;
+        }
+
+        .type-badge,
+        .enum-badge,
+        .method-badge,
+        .error-code {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-badge {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .enum-badge {
+            background: #fef3c7;
+            color: #92400e;
+            margin-left: 4px;
+        }
+
+        .method-badge {
+            background: #6366f1;
+            color: white;
+            font-weight: 700;
+        }
+
+        .error-code {
+            background: #fee2e2;
+            color: #991b1b;
+            font-family: monospace;
+        }
+
+        .required {
+            color: #10b981;
+            font-weight: 700;
+        }
+
+        .optional {
+            color: #cbd5e1;
+        }
+
+        .required-mark {
+            color: #ef4444;
+            margin-left: 4px;
+        }
+
+        .enum-values {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .enum-item {
+            display: inline-block;
+            margin-right: 8px;
+            background: #fef3c7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .enum-label {
+            color: #78350f;
+        }
+
+        .limitations-list {
+            margin: 0;
+            padding-left: 20px;
+            color: #475569;
+        }
+
+        .limitations-list li {
+            margin-bottom: 4px;
+        }
+
+        .example-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .example-block h3 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        .example-section {
+            margin-bottom: 16px;
+        }
+
+        .example-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .example-section h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 8px;
+            font-family: monospace;
+        }
+
+        .example-section pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0;
+        }
+
+        .example-section code {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .test-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 500px;
+            height: 100vh;
+            background: white;
+            border-left: 1px solid #e2e8f0;
+            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .test-panel h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .test-form {
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+            font-family: monospace;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-submit,
+        .btn-cancel {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-submit {
+            background: #6366f1;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-submit:hover {
+            background: #4f46e5;
+        }
+
+        .btn-cancel {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-cancel:hover {
+            background: #e2e8f0;
+        }
+
+        .test-result {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .test-result h4 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .test-result pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0;
+        }
+
+        .test-result code {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .loading,
+        .error {
+            padding: 40px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        /* Toast fade animation */
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .fade-enter-from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .fade-leave-to {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        /* Dropdown animation */
+        .dropdown-enter-active, .dropdown-leave-active {
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .dropdown-enter-from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        .dropdown-leave-to {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        /* Modal animation */
+        .modal-enter-active, .modal-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .modal-enter-from, .modal-leave-to {
+            opacity: 0;
+        }
+
+        /* Preview content styles */
+        .preview-content h1 {
+            font-size: 2em;
+            font-weight: 700;
+            margin: 1.5em 0 0.8em;
+            color: #0f172a;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5em;
+        }
+
+        .preview-content h2 {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin: 1.3em 0 0.6em;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.4em;
+        }
+
+        .preview-content h3 {
+            font-size: 1.25em;
+            font-weight: 600;
+            margin: 1.2em 0 0.5em;
+            color: #334155;
+        }
+
+        .preview-content p {
+            margin: 0.8em 0;
+            line-height: 1.7;
+            color: #475569;
+        }
+
+        .preview-content ul {
+            margin: 1em 0;
+            padding-left: 2em;
+            list-style: disc;
+        }
+
+        .preview-content li {
+            margin: 0.5em 0;
+            line-height: 1.6;
+            color: #475569;
+        }
+
+        .preview-content pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1em;
+            border-radius: 0.5em;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+
+        .preview-content code {
+            background: #f1f5f9;
+            color: #e11d48;
+            padding: 0.2em 0.4em;
+            border-radius: 0.3em;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .preview-content pre code {
+            background: transparent;
+            color: #e2e8f0;
+            padding: 0;
+        }
+
+        .preview-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        .preview-content table tr {
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .preview-content table td {
+            padding: 0.8em 1em;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .preview-content table tr:first-child {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+
+        .preview-content strong {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .preview-content em {
+            font-style: italic;
+            color: #64748b;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden">
+    <div id="app" class="flex h-full font-sans antialiased">
+
+        <!-- SIDEBAR: Catalog Tree -->
+        <aside class="w-72 bg-white text-slate-700 flex flex-col border-r border-slate-200 flex-shrink-0">
+            <!-- Sidebar Header: System Name -->
+            <div class="h-14 border-b border-slate-200 flex items-center px-4 gap-3 bg-white shrink-0">
+                <div
+                    class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white shadow-sm overflow-hidden flex-shrink-0">
+                    <i class="ph ph-tree-structure text-lg"></i>
+                </div>
+                <h1 class="font-bold text-slate-800 tracking-wide text-base truncate">资源中心</h1>
+            </div>
+
+            <!-- Tree Navigation -->
+            <div class="flex-1 overflow-y-auto py-4 px-2">
+                <div class="flex items-center justify-between px-2 mb-3">
+                    <div class="text-xs font-bold text-slate-600 uppercase tracking-wider">资源目录</div>
+                    <div class="relative">
+                        <button @click.stop="showCreateMenu = !showCreateMenu"
+                            class="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors">
+                            <i class="ph ph-plus text-sm"></i>
+                        </button>
+                        <!-- 菜单向左下方弹出 -->
+                        <div v-if="showCreateMenu" @click.self="showCreateMenu = false" class="fixed inset-0 z-40">
+                        </div>
+                        <div v-show="showCreateMenu" @click.stop
+                            class="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-sm">
+                            <button @click="createItem('CATALOG')"
+                                class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                <i class="ph ph-folder text-yellow-500 text-lg"></i> 文件夹
+                            </button>
+                            <div class="h-px bg-slate-100 my-1"></div>
+                            <button @click="createItem('DOCUMENT')"
+                                class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                <i class="ph ph-file-text text-orange-500 text-lg"></i> 文档
+                            </button>
+                            <button @click="createItem('DATA_ASSET')"
+                                class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                <i class="ph ph-database text-blue-500 text-lg"></i> 结构化数据
+                            </button>
+                            <button @click="createItem('DICTIONARY')"
+                                class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                <i class="ph ph-list-bullets text-cyan-500 text-lg"></i> 字典
+                            </button>
+                            <button @click="createItem('FUNCTION')"
+                                class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                <i class="ph ph-code text-purple-500 text-lg"></i> 函数
+                            </button>
+                            <button @click="createItem('PAGE_CARD')"
+                                class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                <i class="ph ph-layout text-pink-500 text-lg"></i> 页面卡片
+                            </button>
+                            <button @click="createItem('SKILL')"
+                                class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                <i class="ph ph-lightning text-emerald-500 text-lg"></i> SKILL
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <tree-item v-for="node in catalogTree" :key="node.id" :node="node" :selected-id="selectedNode?.id"
+                    @select="selectNode" @rename="handleRenameNode"></tree-item>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 shrink-0">
+                <button
+                    class="flex items-center gap-3 w-full px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors">
+                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+                        <span class="font-bold text-xs text-white">YZ</span>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-white font-medium">Yuzhiyuan</p>
+                        <p class="text-xs text-slate-500">管理员</p>
+                    </div>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-white relative">
+            <!-- Top Bar: Global Search -->
+            <div
+                class="h-14 border-b border-slate-200 flex-shrink-0 bg-white px-6 flex items-center justify-center gap-4">
+                <!-- Center: Global Search Bar -->
+                <div class="relative flex-1 max-w-2xl px-4">
+                    <div class="relative">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input v-model="searchQuery" @focus="showSearchDropdown = true"
+                            @blur="setTimeout(() => showSearchDropdown = false, 200)" type="text"
+                            placeholder="全局搜索资源..."
+                            class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-slate-50">
+                    </div>
+
+                    <!-- Search Dropdown -->
+                    <div v-show="showSearchDropdown && searchQuery.trim()"
+                        class="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-slate-200 z-50 max-h-96 overflow-hidden flex flex-col">
+                        <!-- Tabs -->
+                        <div class="flex items-center gap-1 px-3 py-2 border-b border-slate-200 bg-slate-50">
+                            <button @click="searchActiveTab = 'ALL'"
+                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'ALL' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                                全部
+                            </button>
+                            <button @click="searchActiveTab = 'CATALOG'"
+                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'CATALOG' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                                文件夹
+                            </button>
+                            <button @click="searchActiveTab = 'DATA_ASSET'"
+                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DATA_ASSET' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                                结构化数据
+                            </button>
+                            <button @click="searchActiveTab = 'DOCUMENT'"
+                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DOCUMENT' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                                文档
+                            </button>
+                            <button @click="searchActiveTab = 'FUNCTION'"
+                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'FUNCTION' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                                函数
+                            </button>
+                            <button @click="searchActiveTab = 'DICTIONARY'"
+                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DICTIONARY' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                                字典
+                            </button>
+                        </div>
+
+                        <!-- Results -->
+                        <div class="overflow-y-auto max-h-80">
+                            <div v-if="searchResults.length === 0" class="px-4 py-8 text-center text-slate-400 text-sm">
+                                <i class="ph ph-magnifying-glass text-3xl mb-2 block"></i>
+                                未找到匹配的资源
+                            </div>
+                            <button v-for="result in searchResults" :key="result.id" @click="selectNode(result)"
+                                class="w-full px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3 text-left border-b border-slate-100 last:border-b-0">
+                                <div
+                                    :class="['w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', getBgColor(result)]">
+                                    <i :class="['ph text-lg', getNodeIcon(result), getColor(result)]"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-slate-900 truncate">{{ result.name }}</p>
+                                    <p class="text-xs text-slate-500">{{ result.type === 'CATALOG' ? '文件夹' :
+                                        getTypeLabel(result) }}</p>
+                                </div>
+                                <i class="ph ph-arrow-right text-slate-400"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header with Breadcrumb and Actions -->
+            <header
+                class="h-14 border-b border-slate-200 flex-shrink-0 bg-slate-50 px-6 flex items-center justify-between gap-4">
+                <!-- Left: Breadcrumb + Resource Info -->
+                <div class="flex items-center gap-4 overflow-hidden">
+                    <!-- Breadcrumb -->
+                    <div class="flex items-center text-sm text-slate-500 flex-shrink-0">
+                        <template v-for="(crumb, index) in breadcrumbs" :key="crumb.id">
+                            <button @click="selectNode(crumb)"
+                                class="flex items-center gap-1.5 hover:text-slate-800 transition-colors"
+                                :class="index === breadcrumbs.length - 1 ? 'text-slate-800 font-medium' : ''">
+                                <i v-if="index === breadcrumbs.length - 1"
+                                    :class="['ph', index === 0 ? 'ph-house' : getNodeIcon(crumb), getColor(crumb)]"></i>
+                                <span>{{ crumb.name }}</span>
+                            </button>
+                            <i v-if="index < breadcrumbs.length - 1" class="ph ph-caret-right mx-2"></i>
+                        </template>
+                    </div>
+
+                    <!-- Resource Info (if selected) -->
+                    <template v-if="selectedNode">
+                        <div class="h-4 w-px bg-slate-300 flex-shrink-0"></div>
+
+                        <!-- Resource Type Badge -->
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-white border border-slate-200 text-slate-600 flex-shrink-0">
+                            {{ selectedNode.type === 'CATALOG' ? '文件夹' : getTypeLabel(selectedNode) }}
+                        </span>
+
+                        <!-- Resource ID + Actions -->
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <span class="text-xs text-slate-400">ID:</span>
+                            <code
+                                class="px-1.5 py-0.5 bg-white border border-slate-200 text-slate-600 rounded text-xs font-mono">{{ selectedNode.id }}</code>
+
+                            <!-- Dictionary Structure Label -->
+                            <template v-if="selectedNode.resourceType === 'DICTIONARY'">
+                                <span v-if="isDictionaryTree(selectedNode)"
+                                    class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center gap-1 leading-none">
+                                    <i class="ph ph-tree-structure text-[11px]"></i> 树状
+                                </span>
+                                <span v-else
+                                    class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center gap-1 leading-none">
+                                    <i class="ph ph-list-numbers text-[11px]"></i> 单排
+                                </span>
+                            </template>
+
+                            <button @click="copyToClipboard(selectedNode.id)"
+                                class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                title="复制 Resource ID">
+                                <i class="ph ph-copy text-sm"></i>
+                            </button>
+                            <button @click="openSdkPopover(selectedNode)"
+                                class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                title="查看 SDK 代码">
+                                <i class="ph ph-code text-sm"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Right: Actions -->
+                <div v-if="selectedNode" class="flex items-center gap-2 flex-shrink-0">
+                    <button v-if="selectedNode.id !== 'root_all'" @click="openEditNodeModal(selectedNode)"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors">
+                        <i class="ph ph-pencil-simple"></i>
+                        <span>编辑</span>
+                    </button>
+                    <button @click="openPermissionPopover(selectedNode)"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors">
+                        <i class="ph ph-users"></i>
+                        <span>后台权限</span>
+                    </button>
+                    <button v-if="selectedNode.id !== 'root_all'" @click="showDeleteConfirm = true"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:border-red-300 hover:bg-red-50 transition-colors">
+                        <i class="ph ph-trash"></i>
+                        <span>删除</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Edit Node Modal -->
+            <div v-if="showEditNodeModal" @click="showEditNodeModal = false"
+                class="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
+                <div @click.stop
+                    class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+                    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                        <h3 class="text-lg font-bold text-slate-900">编辑{{ selectedNode?.type === 'CATALOG' ? '文件夹' :
+                            (selectedNode?.resourceType === 'DATA_ASSET' ? '结构化数据' : getTypeLabel(selectedNode)) }}信息
+                        </h3>
+                        <button @click="showEditNodeModal = false"
+                            class="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-200 rounded-full transition-colors">
+                            <i class="ph ph-x text-xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="p-6 space-y-6">
+                        <!-- Table English Name (Immutable for Data Asset) -->
+                        <div v-if="selectedNode?.resourceType === 'DATA_ASSET'">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">表英文名</label>
+                            <div class="relative group">
+                                <input :value="editNodeForm.code" type="text" readonly
+                                    class="w-full px-4 py-2.5 border border-slate-200 bg-slate-50 rounded-lg text-sm font-mono text-slate-500 cursor-not-allowed" />
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <i class="ph ph-lock"></i>
+                                </div>
+                                <div
+                                    class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                                    英文名设定后不可修改
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Name Field -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                {{ selectedNode?.type === 'CATALOG' ? '文件夹名称' : (selectedNode?.resourceType ===
+                                'DATA_ASSET' ? '表中文名' : getTypeLabel(selectedNode) + '名称') }}
+                            </label>
+                            <input v-model="editNodeForm.name" type="text"
+                                class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                placeholder="请输入名称">
+                        </div>
+
+                        <!-- Code Field (For non-Data Asset resources) -->
+                        <div v-if="selectedNode?.resourceType !== 'DATA_ASSET'">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                {{ selectedNode?.type === 'CATALOG' ? '文件夹 Code' : getTypeLabel(selectedNode) + ' Code'
+                                }}
+                            </label>
+                            <div class="relative group">
+                                <input :value="editNodeForm.code" type="text" readonly
+                                    class="w-full px-4 py-2.5 border border-slate-200 bg-slate-50 rounded-lg text-sm font-mono text-slate-500 cursor-not-allowed" />
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <i class="ph ph-lock"></i>
+                                </div>
+                                <div
+                                    class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                                    Code 设定后不可修改
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description Field -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                {{ selectedNode?.resourceType === 'DATA_ASSET' ? '表描述' : '资源描述' }}
+                            </label>
+                            <textarea v-model="editNodeForm.description" rows="3"
+                                class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                placeholder="请输入描述信息"></textarea>
+                        </div>
+
+                        <!-- 放置目录 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">放置目录</label>
+                            <select v-model="editNodeForm.parentId"
+                                class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm bg-white">
+                                <option v-for="cat in eligibleCatalogs" :key="cat.id" :value="cat.id">
+                                    {{ cat.name }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
+                        <button @click="showEditNodeModal = false"
+                            class="px-6 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">取消</button>
+                        <button @click="saveEditNode"
+                            class="px-8 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all">
+                            保存修改
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="selectedNode" class="flex-1 overflow-y-auto bg-slate-50 flex flex-col">
+
+                <div v-if="selectedNode.type === 'CATALOG'" class="flex-1 flex flex-col">
+                    <!-- Tabs -->
+                    <div class="bg-white border-b border-slate-200 px-6">
+                        <div class="flex items-center gap-1">
+                            <button @click="catalogActiveTab = 'resources'" :class="[
+                                    'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+                                    catalogActiveTab === 'resources' 
+                                        ? 'border-indigo-600 text-indigo-600' 
+                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                ]">
+                                <i class="ph ph-folder-open mr-1.5"></i>
+                                资源树
+                            </button>
+                            <button @click="catalogActiveTab = 'tags'" :class="[
+                                    'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+                                    catalogActiveTab === 'tags' 
+                                        ? 'border-indigo-600 text-indigo-600' 
+                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                ]">
+                                <i class="ph ph-tags mr-1.5"></i>
+                                治理标签
+                            </button>
+                            <button @click="catalogActiveTab = 'rules'" :class="[
+                                    'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+                                    catalogActiveTab === 'rules' 
+                                        ? 'border-indigo-600 text-indigo-600' 
+                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                ]">
+                                <i class="ph ph-shield-check mr-1.5"></i>
+                                数据访问规则
+                            </button>
+                            <button @click="catalogActiveTab = 'settings'" :class="[
+                                    'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+                                    catalogActiveTab === 'settings' 
+                                        ? 'border-indigo-600 text-indigo-600' 
+                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                ]">
+                                <i class="ph ph-gear mr-1.5"></i>
+                                文件夹设置
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content -->
+                    <div class="flex-1 overflow-hidden">
+                        <!-- 资源树 Tab -->
+                        <div v-show="catalogActiveTab === 'resources'" class="h-full flex flex-col">
+                            <!-- Resource Type Sub-tabs -->
+                            <div class="bg-slate-50 border-b border-slate-200 px-6 py-3 flex-shrink-0">
+                                <div class="flex items-center gap-2">
+                                    <button @click="resourceTypeFilter = 'ALL'" :class="[
+                                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                            resourceTypeFilter === 'ALL' 
+                                                ? 'bg-indigo-600 text-white shadow-sm' 
+                                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                        ]">
+                                        全部
+                                    </button>
+                                    <button @click="resourceTypeFilter = 'DATA_ASSET'" :class="[
+                                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                            resourceTypeFilter === 'DATA_ASSET' 
+                                                ? 'bg-indigo-600 text-white shadow-sm' 
+                                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                        ]">
+                                        <i class="ph ph-database mr-1"></i>
+                                        结构化数据资产
+                                    </button>
+                                    <button @click="resourceTypeFilter = 'DICTIONARY'" :class="[
+                                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                            resourceTypeFilter === 'DICTIONARY' 
+                                                ? 'bg-indigo-600 text-white shadow-sm' 
+                                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                        ]">
+                                        <i class="ph ph-list-bullets mr-1"></i>
+                                        字典
+                                    </button>
+                                    <button @click="resourceTypeFilter = 'DOCUMENT'" :class="[
+                                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                            resourceTypeFilter === 'DOCUMENT' 
+                                                ? 'bg-indigo-600 text-white shadow-sm' 
+                                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                        ]">
+                                        <i class="ph ph-file-text mr-1"></i>
+                                        文档
+                                    </button>
+                                    <button @click="resourceTypeFilter = 'FUNCTION'" :class="[
+                                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                            resourceTypeFilter === 'FUNCTION' 
+                                                ? 'bg-indigo-600 text-white shadow-sm' 
+                                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                        ]">
+                                        <i class="ph ph-code mr-1"></i>
+                                        函数
+                                    </button>
+                                    <button @click="resourceTypeFilter = 'SKILL'" :class="[
+                                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                            resourceTypeFilter === 'SKILL' 
+                                                ? 'bg-indigo-600 text-white shadow-sm' 
+                                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                        ]">
+                                        <i class="ph ph-lightning mr-1"></i>
+                                        Skill
+                                    </button>
+                                    <button @click="resourceTypeFilter = 'PAGE_CARD'" :class="[
+                                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                            resourceTypeFilter === 'PAGE_CARD' 
+                                                ? 'bg-indigo-600 text-white shadow-sm' 
+                                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                        ]">
+                                        <i class="ph ph-layout mr-1"></i>
+                                        页面卡片
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Resource List Content -->
+                            <div class="flex-1 overflow-y-auto p-6">
+                                <!-- Toolbar -->
+                                <div class="mb-4 flex items-center justify-between">
+                                    <div class="text-sm text-slate-600">
+                                        <span class="font-medium">{{ filteredChildren.length }}</span> 个项目
+                                    </div>
+                                </div>
+
+                                <!-- List View -->
+                                <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                                    <table class="min-w-full">
+                                        <thead class="bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                                <th
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    名称</th>
+                                                <th
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    类型</th>
+                                                <th v-show="resourceTypeFilter !== 'ALL'"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    所在路径</th>
+                                                <th
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    修改时间</th>
+                                                <th
+                                                    class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-200">
+                                            <template v-if="filteredChildren.length > 0">
+                                                <template v-for="child in filteredChildren" :key="child.id">
+                                                    <!-- Row -->
+                                                    <tr class="hover:bg-slate-50 transition-colors group">
+                                                        <td class="px-6 py-3">
+                                                            <div class="flex items-center gap-3">
+                                                                <!-- Expand/Collapse Button (只在「全部」tab 且是 CATALOG 时显示) -->
+                                                                <button
+                                                                    v-if="resourceTypeFilter === 'ALL' && child.type === 'CATALOG' && child.children && child.children.length > 0"
+                                                                    @click.stop="toggleExpand(child.id)"
+                                                                    class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-200 transition-colors">
+                                                                    <i
+                                                                        :class="['ph ph-caret-right text-slate-400 transition-transform', isExpanded(child.id) ? 'rotate-90' : '']"></i>
+                                                                </button>
+                                                                <div v-else class="w-5"></div>
+
+                                                                <!-- Icon -->
+                                                                <div
+                                                                    :class="['w-8 h-8 rounded-lg flex items-center justify-center', getBgColor(child)]">
+                                                                    <i
+                                                                        :class="['ph text-lg', getNodeIcon(child), getColor(child)]"></i>
+                                                                </div>
+
+                                                                <!-- Name -->
+                                                                <button @click="selectNode(child)"
+                                                                    class="font-medium text-slate-900 hover:text-indigo-600 transition-colors text-left">
+                                                                    {{ child.name }}
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-6 py-3">
+                                                            <span
+                                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                                                                {{ child.type === 'CATALOG' ? '文件夹' :
+                                                                getTypeLabel(child) }}
+                                                            </span>
+                                                        </td>
+                                                        <!-- Path column (only show in non-ALL tabs) -->
+                                                        <td v-show="resourceTypeFilter !== 'ALL'" class="px-6 py-3">
+                                                            <div class="flex items-center gap-1 text-xs text-slate-500">
+                                                                <i class="ph ph-folder-open"></i>
+                                                                <span>{{ child._displayPath }}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-6 py-3 text-sm text-slate-500">
+                                                            刚刚
+                                                        </td>
+                                                        <td class="px-6 py-3 text-right">
+                                                            <div
+                                                                class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button
+                                                                    class="text-slate-400 hover:text-indigo-600 transition-colors">
+                                                                    <i class="ph ph-pencil-simple"></i>
+                                                                </button>
+                                                                <button
+                                                                    class="text-slate-400 hover:text-red-600 transition-colors">
+                                                                    <i class="ph ph-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+
+                                                    <!-- Nested Children (只在「全部」tab 中展示) -->
+                                                    <template
+                                                        v-if="resourceTypeFilter === 'ALL' && child.type === 'CATALOG' && isExpanded(child.id) && child.children && child.children.length > 0">
+                                                        <tr v-for="subChild in child.children" :key="subChild.id"
+                                                            class="hover:bg-slate-50 transition-colors group bg-slate-50/50">
+                                                            <td class="px-6 py-3">
+                                                                <div class="flex items-center gap-3 pl-8">
+                                                                    <div class="w-5"></div>
+                                                                    <div
+                                                                        :class="['w-8 h-8 rounded-lg flex items-center justify-center', getBgColor(subChild)]">
+                                                                        <i
+                                                                            :class="['ph text-lg', getNodeIcon(subChild), getColor(subChild)]"></i>
+                                                                    </div>
+                                                                    <button @click="selectNode(subChild)"
+                                                                        class="font-medium text-slate-900 hover:text-indigo-600 transition-colors text-left">
+                                                                        {{ subChild.name }}
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                            <td class="px-6 py-3">
+                                                                <span
+                                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                                                                    {{ subChild.type === 'CATALOG' ? '文件夹' :
+                                                                    getTypeLabel(subChild)
+                                                                    }}
+                                                                </span>
+                                                            </td>
+                                                            <td class="px-6 py-3 text-sm text-slate-500">
+                                                                刚刚
+                                                            </td>
+                                                            <td class="px-6 py-3 text-right">
+                                                                <div
+                                                                    class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <button
+                                                                        class="text-slate-400 hover:text-indigo-600 transition-colors">
+                                                                        <i class="ph ph-pencil-simple"></i>
+                                                                    </button>
+                                                                    <button
+                                                                        class="text-slate-400 hover:text-red-600 transition-colors">
+                                                                        <i class="ph ph-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </template>
+                                            </template>
+                                            <tr v-else>
+                                                <td colspan="4" class="px-6 py-12 text-center">
+                                                    <div class="flex flex-col items-center text-slate-400">
+                                                        <i class="ph ph-folder-dashed text-4xl mb-2 text-slate-300"></i>
+                                                        <p class="text-sm">{{ resourceTypeFilter === 'ALL' ? '空文件夹' :
+                                                            '暂无此类型资源' }}</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 治理标签 Tab -->
+                        <div v-show="catalogActiveTab === 'tags'" class="h-full">
+                            <tag-collection :node="selectedNode"></tag-collection>
+                        </div>
+
+                        <!-- 权限规则 Tab -->
+                        <div v-show="catalogActiveTab === 'rules'" class="h-full overflow-y-auto p-6">
+                            <div class="max-w-6xl mx-auto">
+                                <!-- Header -->
+                                <div class="mb-6 flex items-center justify-between">
+                                    <div>
+                                        <h2 class="text-lg font-semibold text-slate-900">全局规则</h2>
+                                        <p class="text-sm text-slate-500 mt-1">通过治理标签配置全局权限规则，可在结构化数据资产中引用</p>
+                                    </div>
+                                    <button @click="openGlobalRuleEdit(-1)"
+                                        class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                                        <i class="ph ph-plus"></i>
+                                        新建规则
+                                    </button>
+                                </div>
+
+                                <!-- Rules List -->
+                                <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+                                    <table class="min-w-full">
+                                        <thead class="bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                                <th
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    规则名称</th>
+                                                <th
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    授权对象</th>
+                                                <th
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    关联标签</th>
+                                                <th
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    关联表</th>
+                                                <th
+                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    启用状态</th>
+                                                <th
+                                                    class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                                    操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-200">
+                                            <tr v-if="globalAuthRules.length === 0">
+                                                <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                                                    <i
+                                                        class="ph ph-shield-check text-4xl mb-2 block text-slate-300"></i>
+                                                    <p class="text-sm">暂无权限规则</p>
+                                                    <p class="text-xs mt-1">点击"新建规则"开始配置</p>
+                                                </td>
+                                            </tr>
+                                            <tr v-for="(rule, index) in globalAuthRules" :key="rule.id"
+                                                class="hover:bg-slate-50 transition-colors group">
+                                                <td class="px-6 py-4">
+                                                    <div class="flex items-center gap-2">
+                                                        <i class="ph ph-shield-check text-indigo-600"></i>
+                                                        <span class="text-sm font-medium text-slate-900">{{ rule.name
+                                                            }}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <span
+                                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700">
+                                                        {{ rule.targetAudience.type === 'role' ? '角色' : '用户组' }}: {{
+                                                        rule.targetAudience.value }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="flex flex-wrap gap-1">
+                                                        <span v-for="tag in rule.tags" :key="tag"
+                                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-700 border border-amber-200">
+                                                            <i class="ph ph-tag mr-1"></i>
+                                                            {{ tag }}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div @mouseenter="showAppliedTables = rule.id"
+                                                        @mouseleave="showAppliedTables = null"
+                                                        class="relative inline-block">
+                                                        <span
+                                                            class="text-sm text-slate-600 cursor-pointer hover:text-indigo-600 border-b border-dashed border-slate-300">
+                                                            {{ rule.appliedTables?.length || 0 }} 个表
+                                                        </span>
+                                                        <!-- Popover -->
+                                                        <div v-if="showAppliedTables === rule.id && rule.appliedTables && rule.appliedTables.length > 0"
+                                                            class="absolute left-0 top-full mt-2 w-72 bg-white rounded-lg shadow-xl border border-slate-200 z-[100] p-3">
+                                                            <div class="text-xs font-semibold text-slate-700 mb-2">
+                                                                关联表：</div>
+                                                            <div class="space-y-1 max-h-48 overflow-y-auto">
+                                                                <div v-for="table in rule.appliedTables" :key="table.id"
+                                                                    class="px-2 py-1.5 text-xs text-slate-600 flex items-center gap-2 hover:bg-slate-50 rounded">
+                                                                    <i class="ph ph-table text-blue-600"></i>
+                                                                    <span class="flex-1">{{ table.name }}</span>
+                                                                    <span v-if="table.env === 'online'"
+                                                                        class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">ONLINE</span>
+                                                                    <span v-else-if="table.env === 'pre'"
+                                                                        class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200">PRE</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <!-- 启用/禁用胶囊 -->
+                                                    <button @click="rule.enabled = !rule.enabled"
+                                                        class="px-2 py-1 rounded-full text-[10px] font-medium transition-all flex items-center inline-flex gap-1.5 border shadow-sm"
+                                                        :class="rule.enabled ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'">
+                                                        <div class="w-1.5 h-1.5 rounded-full"
+                                                            :class="rule.enabled ? 'bg-green-500 animate-pulse' : 'bg-slate-400'">
+                                                        </div>
+                                                        {{ rule.enabled ? '已启用' : '已禁用' }}
+                                                    </button>
+                                                </td>
+                                                <td class="px-6 py-4 text-right">
+                                                    <div
+                                                        class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button @click="openGlobalRuleEdit(index)"
+                                                            class="text-slate-400 hover:text-indigo-600 transition-colors">
+                                                            <i class="ph ph-pencil-simple"></i>
+                                                        </button>
+                                                        <button @click="deleteGlobalRule(index)"
+                                                            class="text-slate-400 hover:text-red-600 transition-colors">
+                                                            <i class="ph ph-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- API 访问管理 Tab -->
+                        <div v-show="catalogActiveTab === 'settings'" class="h-full overflow-y-auto p-6">
+                            <div class="max-w-5xl mx-auto">
+                                <!-- Header -->
+                                <div class="mb-6 flex items-center justify-between pb-4 border-b border-slate-200">
+                                    <div>
+                                        <h2 class="text-lg font-semibold text-slate-900">文件夹设置</h2>
+                                        <p class="text-sm text-slate-500 mt-1">管理此文件夹的应用授权</p>
+                                    </div>
+                                    <button @click="openAppAuthModal"
+                                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium shadow-sm flex items-center gap-2">
+                                        <i class="ph ph-plus text-lg"></i>
+                                        授权应用
+                                    </button>
+                                </div>
+
+                                <!-- Authorized Apps Table -->
+                                <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                                    <table class="w-full text-left">
+                                        <thead class="bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                                <th
+                                                    class="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                                    应用名称</th>
+                                                <th
+                                                    class="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                                    AppKey</th>
+                                                <th
+                                                    class="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                                    操作人</th>
+                                                <th
+                                                    class="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                                    操作时间</th>
+                                                <th
+                                                    class="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right">
+                                                    操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            <tr
+                                                v-if="!selectedNode.authorizedApps || selectedNode.authorizedApps.length === 0">
+                                                <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                                                    <i class="ph ph-app-window text-4xl mb-2 block text-slate-300"></i>
+                                                    <p class="text-sm">暂无授权应用</p>
+                                                    <p class="text-xs mt-1">点击"授权应用"开始添加</p>
+                                                </td>
+                                            </tr>
+                                            <tr v-else v-for="(app, index) in selectedNode.authorizedApps" :key="app.id"
+                                                class="hover:bg-slate-50 transition-colors group">
+                                                <td class="px-6 py-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <div
+                                                            class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                                            <i class="ph ph-app-window text-indigo-600"></i>
+                                                        </div>
+                                                        <span class="text-sm font-medium text-slate-800">{{ app.name
+                                                            }}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <code
+                                                        class="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-700">{{ app.appKey }}</code>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <span class="text-sm text-slate-600">{{ app.authorizer }}</span>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <span class="text-sm text-slate-500">{{ app.authorizedAt }}</span>
+                                                </td>
+                                                <td class="px-6 py-4 text-right">
+                                                    <button @click="removeAuthorizedApp(index)"
+                                                        class="opacity-0 group-hover:opacity-100 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                                                        <i class="ph ph-trash mr-1"></i>
+                                                        删除
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- App Authorization Modal -->
+                        <div v-if="showAppAuthModal"
+                            class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center"
+                            @click.self="closeAppAuthModal">
+                            <div
+                                class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+                                <div
+                                    class="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                                    <h3 class="text-lg font-semibold text-slate-900">授权应用</h3>
+                                    <button @click="closeAppAuthModal" class="text-slate-400 hover:text-slate-600">
+                                        <i class="ph ph-x text-xl"></i>
+                                    </button>
+                                </div>
+
+                                <div class="p-6 flex-1 overflow-y-auto">
+                                    <!-- Search Box -->
+                                    <div class="mb-4">
+                                        <div class="relative">
+                                            <i
+                                                class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                            <input v-model="appSearchQuery" type="text"
+                                                class="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                                placeholder="搜索appkey、应用名称" />
+                                        </div>
+                                    </div>
+
+                                    <!-- App List -->
+                                    <div class="space-y-2 max-h-96 overflow-y-auto">
+                                        <div v-if="filteredAvailableApps.length === 0"
+                                            class="py-12 text-center text-slate-400">
+                                            <i class="ph ph-magnifying-glass text-3xl mb-2 block text-slate-300"></i>
+                                            <p class="text-sm">未找到匹配的应用</p>
+                                        </div>
+                                        <label v-else v-for="app in filteredAvailableApps" :key="app.id"
+                                            class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+                                            :class="selectedAppsForAuth.includes(app.id) ? 'bg-indigo-50 border-indigo-300' : ''">
+                                            <input type="checkbox" :value="app.id" v-model="selectedAppsForAuth"
+                                                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="text-sm font-medium text-slate-800">{{ app.name
+                                                        }}</span>
+                                                </div>
+                                                <code class="text-xs font-mono text-slate-500">{{ app.appKey }}</code>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 flex-shrink-0">
+                                    <button @click="closeAppAuthModal"
+                                        class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm transition-colors">
+                                        取消
+                                    </button>
+                                    <button @click="confirmAppAuthorization"
+                                        :disabled="selectedAppsForAuth.length === 0"
+                                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                        确认授权 ({{ selectedAppsForAuth.length }})
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="h-full flex flex-col p-6">
+                    <div v-if="currentDetailComponent"
+                        class="flex-1 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                        <component :is="currentDetailComponent" :key="selectedNode.id" :node="selectedNode"
+                            :dictionaries="dictionaries" :eligible-catalogs="eligibleCatalogs"
+                            :top-level-catalog-name="topLevelCatalogName"
+                            :global-tags="globalTags">
+                        </component>
+                    </div>
+
+                    <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-400">
+                        <div
+                            :class="['w-16 h-16 rounded-xl flex items-center justify-center text-4xl shadow-sm mb-4', getBgColor(selectedNode)]">
+                            <i :class="['ph', getNodeIcon(selectedNode), getColor(selectedNode)]"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-slate-700 mb-2">{{ selectedNode.name }}</h2>
+                        <p class="text-sm border px-2 py-0.5 rounded bg-slate-100">{{ getTypeLabel(selectedNode) }}</p>
+                        <p class="mt-8">暂无预览可用</p>
+                    </div>
+                </div>
+
+            </div>
+            <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-400">
+                <p>Select an item</p>
+            </div>
+
+        </main>
+
+        <!-- Global Rule Edit Modal -->
+        <permission-rule-edit-modal v-if="showGlobalRuleEdit" :visible="showGlobalRuleEdit"
+            :editing-rule="editingGlobalRule" :editing-index="editingGlobalRuleIndex" :auth-rules="globalAuthRules"
+            :is-global="true" :available-tags="availableTags" @close="closeGlobalRuleEdit" @save="saveGlobalRule"
+            @update:show-audience-dropdown="showAudienceDropdown = $event" @select-audience="selectAudience"
+            @add-row-filter="addGlobalRuleRowFilter" @remove-row-filter="removeGlobalRuleRowFilter"
+            @toggle-column-field="toggleGlobalRuleColumnField">
+        </permission-rule-edit-modal>
+
+        <!-- Permission Popover -->
+        <div v-if="showPermissionPopover" @click="closePopovers"
+            class="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div @click.stop class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-slate-900">管理{{ activePopoverNode?.name }}的权限</h3>
+                    <button @click="closePopovers" class="text-slate-400 hover:text-slate-600">
+                        <i class="ph ph-x text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-6 overflow-y-auto max-h-[calc(80vh-120px)]">
+                    <!-- 描述 (仅文件夹显示) -->
+                    <div v-if="activePopoverNode?.type === 'CATALOG'"
+                        class="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                        <p class="text-sm text-blue-700">
+                            <i class="ph ph-info text-blue-600 mr-1"></i>
+                            对当前文件夹设置权限，现有与未来新增的子文件/子文件夹均继承此权限
+                        </p>
+                    </div>
+
+                    <!-- Current Permissions -->
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-slate-700 mb-3">权限管理</h4>
+                        <div class="space-y-2">
+                            <div v-for="permission in currentPermissions" :key="permission.id"
+                                class="flex items-center justify-between p-3 bg-slate-50 rounded-lg group">
+                                <div class="flex items-center gap-3 flex-1">
+                                    <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold',
+                                                  permission.role === 'admin' ? 'bg-indigo-500' : 'bg-slate-400']">
+                                        {{ permission.avatar }}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-slate-900">{{ permission.name }}</p>
+                                        <p class="text-xs text-slate-500">{{ permission.email }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 ml-auto">
+                                    <span
+                                        :class="['px-2 py-1 text-xs font-medium rounded whitespace-nowrap', getRoleBadgeClass(permission.role)]">
+                                        {{ getRoleLabel(permission.role) }}
+                                    </span>
+                                    <button @click="removePermission(permission.id)"
+                                        class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-600 transition-opacity">
+                                        <i class="ph ph-trash text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add New (移到这里，在继承权限之前) -->
+                    <div class="mb-6">
+                        <button @click="openAddPermissionDialog"
+                            class="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2 font-medium text-sm">
+                            <i class="ph ph-plus-circle"></i>
+                            添加授权
+                        </button>
+                    </div>
+
+                    <!-- Inherited Permissions (只在非root_all时显示) -->
+                    <div v-if="activePopoverNode?.id !== 'root_all'">
+                        <h4 class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="ph ph-arrow-down text-slate-400"></i>
+                            从父目录继承的权限
+                        </h4>
+                        <div class="space-y-2">
+                            <div v-for="permission in inheritedPermissions" :key="permission.id"
+                                class="flex items-center justify-between p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                                <div class="flex items-center gap-3 flex-1">
+                                    <div
+                                        class="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-white text-xs font-bold">
+                                        {{ permission.avatar }}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-slate-900">{{ permission.name }}</p>
+                                        <p class="text-xs text-slate-500">继承自: {{ permission.inheritedFrom }}</p>
+                                    </div>
+                                </div>
+                                <span
+                                    :class="['px-2 py-1 text-xs font-medium rounded whitespace-nowrap', getRoleBadgeClass(permission.role)]">
+                                    {{ getRoleLabel(permission.role) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
+                    <button @click="closePopovers"
+                        class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">关闭</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加授权弹窗 -->
+        <div v-if="showAddPermissionDialog" @click="closeAddPermissionDialog"
+            class="fixed inset-0 bg-black/30 z-[10000] flex items-center justify-center">
+            <div @click.stop class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-slate-900">添加授权</h3>
+                    <button @click="closeAddPermissionDialog" class="p-1 text-slate-400 hover:text-slate-600">
+                        <i class="ph ph-x text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">搜索并选择用户 <span
+                                class="text-red-500">*</span></label>
+                        <div class="relative mb-2">
+                            <i
+                                class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input v-model="userSearchQuery" type="text" placeholder="搜索用户名或邮箱"
+                                class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                        </div>
+                        <div class="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                            <button v-for="user in filteredUsers" :key="user.id" @click="selectUser(user)" type="button"
+                                :class="['w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors border-b border-slate-100 last:border-b-0',
+                                         selectedUser?.id === user.id ? 'bg-indigo-50' : 'hover:bg-slate-50']">
+                                <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold',
+                                              selectedUser?.id === user.id ? 'bg-indigo-500' : 'bg-slate-400']">
+                                    {{ user.avatar }}
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-medium text-slate-900">{{ user.name }}</p>
+                                    <p class="text-xs text-slate-500">{{ user.email }}</p>
+                                </div>
+                                <i v-if="selectedUser?.id === user.id"
+                                    class="ph-fill ph-check-circle text-indigo-600"></i>
+                            </button>
+                            <div v-if="filteredUsers.length === 0" class="px-4 py-8 text-center text-slate-400 text-sm">
+                                未找到匹配的用户
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">权限级别 <span
+                                class="text-red-500">*</span></label>
+                        <div class="space-y-2">
+                            <button @click="selectPermissionRole('admin')" type="button"
+                                :class="['w-full text-left px-4 py-3 rounded-lg border-2 transition-colors flex items-center gap-3',
+                                         selectedPermissionRole === 'admin' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300']">
+                                <i class="ph ph-shield-check text-xl text-indigo-600"></i>
+                                <div class="flex-1">
+                                    <p class="font-medium text-slate-900">管理员</p>
+                                    <p class="text-xs text-slate-500">可管理当前目录及下级资源，可新增授权</p>
+                                </div>
+                                <i v-if="selectedPermissionRole === 'admin'"
+                                    class="ph-fill ph-check-circle text-indigo-600"></i>
+                            </button>
+                            <button @click="selectPermissionRole('editor')" type="button"
+                                :class="['w-full text-left px-4 py-3 rounded-lg border-2 transition-colors flex items-center gap-3',
+                                         selectedPermissionRole === 'editor' ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-green-300']">
+                                <i class="ph ph-pencil text-xl text-green-600"></i>
+                                <div class="flex-1">
+                                    <p class="font-medium text-slate-900">可编辑</p>
+                                    <p class="text-xs text-slate-500">可新增/修改当前目录及下级资源</p>
+                                </div>
+                                <i v-if="selectedPermissionRole === 'editor'"
+                                    class="ph-fill ph-check-circle text-green-600"></i>
+                            </button>
+                            <button @click="selectPermissionRole('viewer')" type="button"
+                                :class="['w-full text-left px-4 py-3 rounded-lg border-2 transition-colors flex items-center gap-3',
+                                         selectedPermissionRole === 'viewer' ? 'border-slate-500 bg-slate-50' : 'border-slate-200 hover:border-slate-300']">
+                                <i class="ph ph-eye text-xl text-slate-600"></i>
+                                <div class="flex-1">
+                                    <p class="font-medium text-slate-900">可查看</p>
+                                    <p class="text-xs text-slate-500">只读权限，可查看当前目录及下级资源内容</p>
+                                </div>
+                                <i v-if="selectedPermissionRole === 'viewer'"
+                                    class="ph-fill ph-check-circle text-slate-600"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+                    <button @click="closeAddPermissionDialog" type="button"
+                        class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors text-sm">
+                        取消
+                    </button>
+                    <button @click="confirmAddPermission" type="button"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                        确认添加
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SDK Code Popover -->
+        <div v-if="showSdkPopover" @click="closePopovers"
+            class="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div @click.stop class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">SDK 接入代码</h3>
+                        <p class="text-sm text-slate-500 mt-1">使用以下代码快速接入资源</p>
+                    </div>
+                    <button @click="closePopovers" class="text-slate-400 hover:text-slate-600">
+                        <i class="ph ph-x text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-6 overflow-y-auto max-h-[calc(80vh-180px)]">
+                    <!-- Installation -->
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-slate-700 mb-2">1. 安装 SDK</h4>
+                        <div class="relative">
+                            <pre
+                                class="bg-slate-900 text-slate-100 p-4 rounded-lg text-sm overflow-x-auto"><code>pip install resource-sdk</code></pre>
+                            <button @click="copyToClipboard('pip install resource-sdk')"
+                                class="absolute top-2 right-2 p-2 text-slate-400 hover:text-white transition-colors">
+                                <i class="ph ph-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Usage Code -->
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-slate-700 mb-2">2. 使用示例代码</h4>
+                        <div class="relative">
+                            <pre
+                                class="bg-slate-900 text-slate-100 p-4 rounded-lg text-sm overflow-x-auto font-mono leading-relaxed"><code>{{ activePopoverNode ? getSdkCode(activePopoverNode) : '' }}</code></pre>
+                            <button @click="copyToClipboard(activePopoverNode ? getSdkCode(activePopoverNode) : '')"
+                                class="absolute top-2 right-2 p-2 text-slate-400 hover:text-white transition-colors">
+                                <i class="ph ph-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tips -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex gap-3">
+                            <i class="ph ph-info text-blue-600 text-xl flex-shrink-0"></i>
+                            <div>
+                                <h5 class="text-sm font-semibold text-blue-900 mb-1">提示</h5>
+                                <ul class="text-sm text-blue-800 space-y-1">
+                                    <li>• 请将 <code class="px-1 bg-blue-100 rounded">your_auth_token</code> 替换为您的实际认证令牌
+                                    </li>
+                                    <li>• 运行测试用例确保接入成功</li>
+                                    <li>• 更多 API 文档请访问开发者中心</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
+                    <button @click="closePopovers"
+                        class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors">关闭</button>
+                    <button @click="copyToClipboard(activePopoverNode ? getSdkCode(activePopoverNode) : '')"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                        <i class="ph ph-copy"></i>
+                        复制全部代码
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div v-if="showDeleteConfirm" @click="showDeleteConfirm = false"
+            class="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div @click.stop class="bg-white rounded-xl shadow-2xl w-full max-w-md">
+                <div class="px-6 py-4 border-b border-slate-200">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                            <i class="ph ph-warning text-red-600 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900">确认删除</h3>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <p class="text-slate-700 mb-2">您确定要删除以下资源吗？</p>
+                    <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                        <div class="flex items-center gap-3">
+                            <div v-if="selectedNode"
+                                :class="['w-10 h-10 rounded-lg flex items-center justify-center', getBgColor(selectedNode)]">
+                                <i :class="['ph text-lg', getNodeIcon(selectedNode), getColor(selectedNode)]"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-slate-900">{{ selectedNode?.name }}</p>
+                                <p class="text-xs text-slate-500">{{ selectedNode?.type === 'CATALOG' ? '文件夹' :
+                                    getTypeLabel(selectedNode) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p class="text-sm text-red-800 flex items-start gap-2">
+                            <i class="ph ph-warning-circle text-red-600 flex-shrink-0 mt-0.5"></i>
+                            <span>此操作不可撤销，删除后数据将无法恢复。</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
+                    <button @click="showDeleteConfirm = false"
+                        class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">取消</button>
+                    <button @click="confirmDelete"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+                        <i class="ph ph-trash"></i>
+                        确认删除
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新建文件夹弹窗 -->
+        <div v-if="showNewFolderDialog" class="fixed inset-0 bg-black/30 z-[10000] flex items-center justify-center"
+            @click.self="cancelNewFolder">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-slate-900">新建文件夹</h3>
+                    <button @click="cancelNewFolder" class="p-1 text-slate-400 hover:text-slate-600">
+                        <i class="ph ph-x text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">选择上级文件夹 <span
+                                class="text-red-500">*</span></label>
+                        <div class="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                            <button @click="selectNewFolderParent({id: 'root_all', name: '全部'})" type="button"
+                                :class="['w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-b border-slate-100',
+                                         newFolderParent?.id === 'root_all' ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50']">
+                                <i class="ph ph-folder text-yellow-500"></i>
+                                <span>全部</span>
+                                <i v-if="newFolderParent?.id === 'root_all'"
+                                    class="ph-fill ph-check-circle text-indigo-600 ml-auto"></i>
+                            </button>
+                            <button @click="selectNewFolderParent({id: 'root_data_warehouse', name: '数据仓库域'})"
+                                type="button"
+                                :class="['w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-b border-slate-100',
+                                         newFolderParent?.id === 'root_data_warehouse' ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50']">
+                                <i class="ph ph-folder text-yellow-500"></i>
+                                <span>数据仓库域</span>
+                                <i v-if="newFolderParent?.id === 'root_data_warehouse'"
+                                    class="ph-fill ph-check-circle text-indigo-600 ml-auto"></i>
+                            </button>
+                            <button @click="selectNewFolderParent({id: 'root_hr', name: 'HR 域'})" type="button"
+                                :class="['w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors border-b border-slate-100',
+                                         newFolderParent?.id === 'root_hr' ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50']">
+                                <i class="ph ph-folder text-yellow-500"></i>
+                                <span>HR 域</span>
+                                <i v-if="newFolderParent?.id === 'root_hr'"
+                                    class="ph-fill ph-check-circle text-indigo-600 ml-auto"></i>
+                            </button>
+                            <button @click="selectNewFolderParent({id: 'root_sre', name: 'SRE 运维域'})" type="button"
+                                :class="['w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
+                                         newFolderParent?.id === 'root_sre' ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50']">
+                                <i class="ph ph-folder text-yellow-500"></i>
+                                <span>SRE 运维域</span>
+                                <i v-if="newFolderParent?.id === 'root_sre'"
+                                    class="ph-fill ph-check-circle text-indigo-600 ml-auto"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">文件夹名称 <span
+                                class="text-red-500">*</span></label>
+                        <input v-model="newFolderName" type="text" placeholder="输入新文件夹名称"
+                            class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">文件夹 Code <span
+                                class="text-red-500">*</span></label>
+                        <input v-model="newFolderCode" type="text" placeholder="例如: HR_CATALOG"
+                            class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+                    <button @click="cancelNewFolder" type="button"
+                        class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors text-sm">
+                        取消
+                    </button>
+                    <button @click="confirmNewFolder" type="button"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                        确认
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新建字典对话框 -->
+        <div v-if="showCreateDictionaryWizard"
+            class="fixed inset-0 bg-black/30 z-[10000] flex items-center justify-center"
+            @click.self="showCreateDictionaryWizard = false">
+            <div
+                class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col max-h-[90vh]">
+                <!-- Header -->
+                <div
+                    class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-cyan-50 flex-shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                            <i class="ph-bold ph-list-bullets text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-900">新建字典</h3>
+                    </div>
+                    <button @click="showCreateDictionaryWizard = false"
+                        class="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-lg transition-colors">
+                        <i class="ph ph-x text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div class="space-y-6">
+                        <!-- 字典名称 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">字典名称 <span
+                                    class="text-red-500">*</span></label>
+                            <input v-model="createDictionaryForm.name" type="text"
+                                class="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                placeholder="例如：员工职级" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">字典 Code <span
+                                    class="text-red-500">*</span></label>
+                            <input v-model="createDictionaryForm.code" type="text"
+                                class="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                placeholder="例如：EMPLOYEE_LEVEL" />
+                        </div>
+
+                        <!-- 字典描述 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">字典描述</label>
+                            <textarea v-model="createDictionaryForm.description" rows="3"
+                                class="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
+                                placeholder="简要描述该字典的用途和包含的枚举类型"></textarea>
+                        </div>
+
+                        <!-- 结构类型选择 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-3">结构类型 <span
+                                    class="text-red-500">*</span></label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <label @click="createDictionaryForm.isTree = false"
+                                    :class="['flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all', 
+                                            !createDictionaryForm.isTree ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/10' : 'bg-white border-slate-100 hover:border-slate-300']">
+                                    <div
+                                        :class="['w-10 h-10 rounded-lg flex items-center justify-center', !createDictionaryForm.isTree ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500']">
+                                        <i class="ph-bold ph-list-numbers text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <p
+                                            :class="['text-sm font-bold', !createDictionaryForm.isTree ? 'text-indigo-900' : 'text-slate-700']">
+                                            单排结构</p>
+                                        <p class="text-[10px] text-slate-400">扁平列表，适用于简单枚举</p>
+                                    </div>
+                                    <div class="ml-auto">
+                                        <i v-if="!createDictionaryForm.isTree"
+                                            class="ph-fill ph-check-circle text-indigo-600 text-xl"></i>
+                                    </div>
+                                </label>
+                                <label @click="createDictionaryForm.isTree = true"
+                                    :class="['flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all', 
+                                            createDictionaryForm.isTree ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/10' : 'bg-white border-slate-100 hover:border-slate-300']">
+                                    <div
+                                        :class="['w-10 h-10 rounded-lg flex items-center justify-center', createDictionaryForm.isTree ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500']">
+                                        <i class="ph-bold ph-tree-structure text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <p
+                                            :class="['text-sm font-bold', createDictionaryForm.isTree ? 'text-indigo-900' : 'text-slate-700']">
+                                            树状结构</p>
+                                        <p class="text-[10px] text-slate-400">层级嵌套，支持父子级联</p>
+                                    </div>
+                                    <div class="ml-auto">
+                                        <i v-if="createDictionaryForm.isTree"
+                                            class="ph-fill ph-check-circle text-indigo-600 text-xl"></i>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 放置目录 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">放置目录 <span
+                                    class="text-red-500">*</span></label>
+                            <div
+                                class="border border-slate-200 rounded-lg overflow-hidden max-h-56 overflow-y-auto bg-slate-50/50">
+                                <button v-for="folder in eligibleCatalogs" :key="folder.id"
+                                    @click="createDictionaryForm.parentId = folder.id" type="button"
+                                    :class="['w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition-all border-b border-slate-100 last:border-0',
+                                             createDictionaryForm.parentId === folder.id ? 'bg-indigo-600 text-white shadow-sm' : 'hover:bg-white text-slate-700']">
+                                    <i
+                                        :class="['ph-fill ph-folder text-lg', createDictionaryForm.parentId === folder.id ? 'text-yellow-300' : 'text-yellow-500']"></i>
+                                    <span class="font-semibold flex-1">{{ folder.name }}</span>
+                                    <div v-if="createDictionaryForm.parentId === folder.id"
+                                        class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+                                        <i class="ph-bold ph-check text-xs"></i>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer (Actions) -->
+                <div
+                    class="px-6 py-4 border-t border-slate-200 flex justify-between items-center bg-slate-50 flex-shrink-0">
+                    <p class="text-xs text-slate-500">
+                        <i class="ph ph-info text-sm"></i> 创建后可在详情页添加枚举项
+                    </p>
+                    <div class="flex gap-3">
+                        <button @click="showCreateDictionaryWizard = false" type="button"
+                            class="px-5 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors text-sm font-medium">
+                            取消
+                        </button>
+                        <button @click="createDictionary" type="button"
+                            class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all text-sm font-medium shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300">
+                            <i class="ph ph-plus-circle mr-1.5"></i>创建字典
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新建文档向导 -->
+        <div v-if="showCreateWikiWizard"
+            class="fixed inset-0 bg-black/30 z-[10000] flex items-center justify-center cursor-default"
+            @click.self="showCreateWikiWizard = false">
+            <div
+                class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col max-h-[90vh]">
+                <!-- Header -->
+                <div
+                    class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-orange-50 to-amber-50 flex-shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center text-white shadow-md">
+                            <i class="ph-bold ph-file-text text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-900">新建文档</h3>
+                    </div>
+                    <button @click="showCreateWikiWizard = false"
+                        class="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-lg transition-colors">
+                        <i class="ph ph-x text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">文档名称 <span
+                                class="text-red-500">*</span> <span class="text-xs font-normal text-slate-400 ml-1">该信息将帮助 agent 定位到这篇文档</span></label>
+                        <input v-model="createWikiForm.name" type="text"
+                            class="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                            placeholder="例如：2024 员工手册" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">文档描述 <span
+                                class="text-red-500">*</span> <span class="text-xs font-normal text-slate-400 ml-1">该信息将帮助 agent 定位到这篇文档</span></label>
+                        <textarea v-model="createWikiForm.description" rows="4"
+                            class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                            placeholder="建议包含：文档主题、适用场景、以及用户可能的提问方式，描述越准确，Agent 找到本文档的概率越高"></textarea>
+                    </div>
+
+                    <!-- 放置目录 -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">放置目录 <span
+                                class="text-red-500">*</span></label>
+                        <div
+                            class="border border-slate-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto bg-slate-50/50">
+                            <button v-for="folder in eligibleCatalogs" :key="folder.id"
+                                @click="createWikiForm.parentId = folder.id" type="button"
+                                :class="['w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-all border-b border-slate-100 last:border-0', createWikiForm.parentId === folder.id ? 'bg-indigo-600 text-white shadow-sm' : 'hover:bg-white text-slate-700']">
+                                <i
+                                    :class="['ph-fill ph-folder text-base', createWikiForm.parentId === folder.id ? 'text-yellow-300' : 'text-yellow-500']"></i>
+                                <span class="font-medium flex-1">{{ folder.name }}</span>
+                                <i v-if="createWikiForm.parentId === folder.id" class="ph-bold ph-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer (Actions) -->
+                <div
+                    class="px-6 py-4 border-t border-slate-200 flex justify-end items-center bg-slate-50 flex-shrink-0">
+                    <div class="flex gap-3">
+                        <button @click="showCreateWikiWizard = false" type="button"
+                            class="px-5 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors text-sm font-medium">
+                            取消
+                        </button>
+                        <button @click="createWiki" type="button"
+                            class="px-6 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all text-sm font-medium shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300">
+                            <i class="ph ph-plus-circle mr-1.5"></i>创建文档
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 创建结构化数据资产向导 -->
+        <create-data-asset-wizard :visible="showCreateDataAssetWizard" :step="createDataAssetStep"
+            :method="createDataAssetMethod" :form="createDataAssetForm" :data-source-tables="dataSourceTables"
+            @close="closeCreateWizard" @back="goBackCreateWizard" @select-method="selectCreateMethod"
+            @preview="previewCreateView" @save="saveCreateDataAsset" @select-table="toggleTableSelection"
+            @update-field-description="updateFieldDescription"
+            @update-view-field-description="updateViewFieldDescription" @file-upload="handleFileUpload"
+            @select-sheet="selectSheet" @update-excel-field="updateExcelField" @next-step="proceedToFinalStep"
+            @update:form="(val) => createDataAssetForm = val" />
+
+        <!-- 调试面板 -->
+        <div v-if="false"
+            class="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-xl border-2 border-indigo-500 z-50"
+            style="max-width: 300px;">
+            <h3 class="font-bold mb-2">调试信息</h3>
+            <div class="text-xs space-y-1 font-mono">
+                <div>visible: {{ showCreateDataAssetWizard }}</div>
+                <div>step: {{ createDataAssetStep }}</div>
+                <div>method: {{ createDataAssetMethod }}</div>
+                <div>dataSource: {{ createDataAssetForm.dataSource }}</div>
+                <div>selectedTable: {{ createDataAssetForm.selectedTable?.name || 'null' }}</div>
+                <div>tableMetadata: {{ createDataAssetForm.tableMetadata ? 'exists' : 'null' }}</div>
+            </div>
+            <button @click="createDataAssetStep = 3; createDataAssetForm.tableMetadata = {name: 'test', fields: []}"
+                class="mt-2 px-2 py-1 bg-blue-500 text-white text-xs rounded w-full">
+                强制 Step 3
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="./js/mock_data.js?v=1774410156"></script>
+    <script src="./js/utils.js?v=1774410156"></script>
+    <script src="./js/templates.js?v=1774530900"></script>
+    <script src="./js/wiki_data.js?v=1774410156"></script>
+    <script src="./js/skill_data.js?v=1774410156"></script>
+    <script src="./js/components/TreeItem.js?v=1774410156"></script>
+    <script src="./js/components/DetailDocument.js?v=1774531700"></script>
+    <script src="./js/components/DetailFunction.js?v=1774410156"></script>
+    <script src="./js/components/DetailSkill.js?v=1774410156"></script>
+    <script src="./js/components/DetailDictionary.js?v=1774410156"></script>
+    <script src="./js/bundle.js?v=1774530900"></script>
+</body>
+
+</html>
