@@ -1489,6 +1489,139 @@
             </div>
 
         </main>
+    <!-- ========== BOT DRAWER ========== -->
+    <div v-show="showBotDrawer" style="position:fixed;top:0;right:0;bottom:0;width:400px;z-index:200;background:#fff;border-left:1px solid #e2e8f0;box-shadow:-4px 0 24px rgba(0,0,0,0.10);display:flex;flex-direction:column;">
+
+        <!-- Drawer Header -->
+        <div style="height:56px;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:12px;background:linear-gradient(to right,#eef2ff,#fff);">
+        <div style="width:32px;height:32px;border-radius:8px;background:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ph-fill ph-robot" style="color:white;font-size:16px;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <p style="font-weight:600;color:#0f172a;font-size:14px;margin:0;">资源中心 Bot</p>
+            <p style="font-size:12px;color:#10b981;margin:0;display:flex;align-items:center;gap:4px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span>在线
+            </p>
+        </div>
+        <button @click="showBotDrawer = false" style="padding:6px;color:#94a3b8;border:none;background:none;cursor:pointer;border-radius:8px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
+            <i class="ph ph-x" style="font-size:16px;"></i>
+        </button>
+        </div>
+
+        <!-- Messages Area -->
+        <div ref="botMessagesRef" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Welcome + Preset Questions -->
+        <div v-if="botMessages.length === 0" style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;gap:10px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
+                <i class="ph-fill ph-robot" style="color:white;font-size:14px;"></i>
+            </div>
+            <div style="background:#f1f5f9;border-radius:0 16px 16px 16px;padding:12px 16px;max-width:280px;">
+                <p style="font-size:14px;color:#1e293b;margin:0;">你好！我是资源中心 Bot，可以帮你测试 Agent 召回能力和数据分析。</p>
+            </div>
+            </div>
+            <p style="font-size:12px;color:#94a3b8;padding-left:38px;margin:0;">试试下面的问题：</p>
+            <div style="padding-left:38px;display:flex;flex-direction:column;gap:8px;">
+            <button @click="selectPresetQuestion('测试一下文档的召回')" style="width:100%;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">
+                <i class="ph ph-magnifying-glass" style="color:#6366f1;"></i>
+                测试一下文档的召回
+            </button>
+            <button @click="selectPresetQuestion('帮我算一下企业应用部年龄分布')" style="width:100%;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid #d8b4fe;background:#faf5ff;color:#7c3aed;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#faf5ff'">
+                <i class="ph ph-chart-bar" style="color:#8b5cf6;"></i>
+                帮我算一下企业应用部年龄分布
+            </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <template v-for="(msg, idx) in botMessages" :key="idx">
+            <!-- User Message -->
+            <div v-if="msg.role === 'user'" style="display:flex;justify-content:flex-end;">
+            <div style="background:#4f46e5;color:white;border-radius:16px 16px 0 16px;padding:10px 16px;max-width:280px;font-size:14px;">
+                {{ msg.content }}
+            </div>
+            </div>
+
+            <!-- Assistant Message -->
+            <div v-else style="display:flex;gap:10px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
+                <i class="ph-fill ph-robot" style="color:white;font-size:14px;"></i>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+                <!-- Tool Call Cards -->
+                <div v-if="msg.toolCalls && msg.toolCalls.length > 0" style="display:flex;flex-direction:column;gap:6px;">
+                <div v-for="(tc, ti) in msg.toolCalls" :key="ti" style="border-radius:12px;border:1px solid;overflow:hidden;background:white;" :style="tc.status === 'done' ? 'border-color:#a7f3d0' : 'border-color:#e2e8f0'">
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
+                    <div v-if="tc.status === 'running'" style="width:14px;height:14px;border:2px solid #6366f1;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div>
+                    <div v-else-if="tc.status === 'done'" style="width:14px;height:14px;border-radius:50%;background:#10b981;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="ph-bold ph-check" style="color:white;font-size:9px;"></i>
+                    </div>
+                    <i :class="['ph', tc.icon]" :style="tc.status === 'done' ? 'color:#059669;font-size:14px;flex-shrink:0;' : 'color:#6366f1;font-size:14px;flex-shrink:0;'"></i>
+                    <span style="font-size:12px;font-weight:500;color:#334155;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ tc.label }}</span>
+                    <span v-if="tc.status === 'running'" style="font-size:10px;color:#6366f1;flex-shrink:0;">运行中...</span>
+                    <span v-if="tc.status === 'done'" style="font-size:10px;color:#059669;flex-shrink:0;">完成</span>
+                    </div>
+                    <div v-if="tc.status === 'done' && tc.result" style="border-top:1px solid #f1f5f9;padding:8px 12px;background:#f8fafc;">
+                    <p style="font-size:11px;color:#64748b;font-family:monospace;white-space:pre-wrap;margin:0;line-height:1.5;">{{ tc.result }}</p>
+                    </div>
+                </div>
+                </div>
+                <!-- Final text -->
+                <div v-if="msg.content" style="background:#f1f5f9;border-radius:0 16px 16px 16px;padding:12px 16px;">
+                <p style="font-size:14px;color:#1e293b;white-space:pre-wrap;margin:0;line-height:1.6;">{{ msg.content }}</p>
+                </div>
+                <!-- Thinking dots -->
+                <div v-if="msg.isThinking && !msg.content" style="background:#f1f5f9;border-radius:0 16px 16px 16px;padding:12px 16px;display:inline-flex;gap:4px;align-items:center;">
+                <span style="width:8px;height:8px;background:#94a3b8;border-radius:50%;animation:bounce 1s infinite 0ms;display:inline-block;"></span>
+                <span style="width:8px;height:8px;background:#94a3b8;border-radius:50%;animation:bounce 1s infinite 150ms;display:inline-block;"></span>
+                <span style="width:8px;height:8px;background:#94a3b8;border-radius:50%;animation:bounce 1s infinite 300ms;display:inline-block;"></span>
+                </div>
+            </div>
+            </div>
+        </template>
+
+        <!-- Preset Config Card -->
+        <div v-if="showPresetCard" style="border-radius:16px;border:1px solid #c7d2fe;padding:16px;background:rgba(238,242,255,0.8);display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+            <i class="ph ph-sliders" style="color:#4f46e5;font-size:16px;"></i>
+            <p style="font-size:14px;font-weight:600;color:#312e81;margin:0;">配置测试</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+                <label style="display:block;font-size:12px;font-weight:500;color:#475569;margin-bottom:4px;">测试 Agent</label>
+                <select v-model="botAgentType" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;background:white;color:#334155;">
+                <option value="lumos">Lumos</option>
+                <option value="finmi">Finmi</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block;font-size:12px;font-weight:500;color:#475569;margin-bottom:4px;">测试问题</label>
+                <input v-model="botPresetQuestion" type="text" placeholder="输入测试问题..." style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#334155;box-sizing:border-box;" />
+            </div>
+            </div>
+            <div style="display:flex;gap:8px;">
+            <button @click="showPresetCard = false" style="flex:1;padding:8px;font-size:14px;color:#475569;background:white;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;">取消</button>
+            <button @click="submitPresetQuestion" :disabled="botIsLoading" style="flex:1;padding:8px;font-size:14px;color:white;background:#4f46e5;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <i class="ph ph-play-circle" style="font-size:16px;"></i>
+                开始测试
+            </button>
+            </div>
+        </div>
+        </div>
+
+        <!-- Input Bar -->
+        <div style="flex-shrink:0;border-top:1px solid #e2e8f0;padding:12px;background:white;">
+        <div style="display:flex;align-items:flex-end;gap:8px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;padding:10px 12px;">
+            <textarea v-model="botInputText" @keydown.enter.exact.prevent="sendBotMessage" placeholder="发送消息..." rows="1" style="flex:1;background:transparent;font-size:14px;color:#1e293b;resize:none;outline:none;border:none;min-height:20px;max-height:80px;line-height:1.5;font-family:inherit;"></textarea>
+            <button @click="sendBotMessage" :disabled="botIsLoading || !botInputText.trim()" :style="(botIsLoading || !botInputText.trim()) ? 'width:28px;height:28px;border-radius:8px;background:#e2e8f0;color:#94a3b8;border:none;cursor:not-allowed;display:flex;align-items:center;justify-content:center;flex-shrink:0;' : 'width:28px;height:28px;border-radius:8px;background:#4f46e5;color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;'">
+            <i class="ph-fill ph-paper-plane-tilt" style="font-size:14px;"></i>
+            </button>
+        </div>
+        <p style="font-size:10px;color:#94a3b8;text-align:center;margin:6px 0 0 0;">Enter 发送 · 内容由 AI 生成，仅供参考</p>
+        </div>
+    </div>
+
 
         <!-- Global Rule Edit Modal -->
         <permission-rule-edit-modal v-if="showGlobalRuleEdit" :visible="showGlobalRuleEdit"
@@ -2130,138 +2263,6 @@
             </button>
         </div>
 
-        <!-- ========== BOT DRAWER ========== -->
-        <div v-show="showBotDrawer" style="position:fixed;top:0;right:0;bottom:0;width:400px;z-index:200;background:#fff;border-left:1px solid #e2e8f0;box-shadow:-4px 0 24px rgba(0,0,0,0.10);display:flex;flex-direction:column;">
-
-            <!-- Drawer Header -->
-            <div style="height:56px;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:12px;background:linear-gradient(to right,#eef2ff,#fff);">
-                <div style="width:32px;height:32px;border-radius:8px;background:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="ph-fill ph-robot" style="color:white;font-size:16px;"></i>
-                </div>
-                <div style="flex:1;min-width:0;">
-                    <p style="font-weight:600;color:#0f172a;font-size:14px;margin:0;">资源中心 Bot</p>
-                    <p style="font-size:12px;color:#10b981;margin:0;display:flex;align-items:center;gap:4px;">
-                        <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span>在线
-                    </p>
-                </div>
-                <button @click="showBotDrawer = false" style="padding:6px;color:#94a3b8;border:none;background:none;cursor:pointer;border-radius:8px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
-                    <i class="ph ph-x" style="font-size:16px;"></i>
-                </button>
-            </div>
-
-            <!-- Messages Area -->
-            <div ref="botMessagesRef" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;">
-
-                <!-- Welcome + Preset Questions -->
-                <div v-if="botMessages.length === 0" style="display:flex;flex-direction:column;gap:12px;">
-                    <div style="display:flex;gap:10px;">
-                        <div style="width:28px;height:28px;border-radius:50%;background:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
-                            <i class="ph-fill ph-robot" style="color:white;font-size:14px;"></i>
-                        </div>
-                        <div style="background:#f1f5f9;border-radius:0 16px 16px 16px;padding:12px 16px;max-width:280px;">
-                            <p style="font-size:14px;color:#1e293b;margin:0;">你好！我是资源中心 Bot，可以帮你测试 Agent 召回能力和数据分析。</p>
-                        </div>
-                    </div>
-                    <p style="font-size:12px;color:#94a3b8;padding-left:38px;margin:0;">试试下面的问题：</p>
-                    <div style="padding-left:38px;display:flex;flex-direction:column;gap:8px;">
-                        <button @click="selectPresetQuestion('测试一下文档的召回')" style="width:100%;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">
-                            <i class="ph ph-magnifying-glass" style="color:#6366f1;"></i>
-                            测试一下文档的召回
-                        </button>
-                        <button @click="selectPresetQuestion('帮我算一下企业应用部年龄分布')" style="width:100%;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid #d8b4fe;background:#faf5ff;color:#7c3aed;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#faf5ff'">
-                            <i class="ph ph-chart-bar" style="color:#8b5cf6;"></i>
-                            帮我算一下企业应用部年龄分布
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Chat Messages -->
-                <template v-for="(msg, idx) in botMessages" :key="idx">
-                    <!-- User Message -->
-                    <div v-if="msg.role === 'user'" style="display:flex;justify-content:flex-end;">
-                        <div style="background:#4f46e5;color:white;border-radius:16px 16px 0 16px;padding:10px 16px;max-width:280px;font-size:14px;">
-                            {{ msg.content }}
-                        </div>
-                    </div>
-
-                    <!-- Assistant Message -->
-                    <div v-else style="display:flex;gap:10px;">
-                        <div style="width:28px;height:28px;border-radius:50%;background:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
-                            <i class="ph-fill ph-robot" style="color:white;font-size:14px;"></i>
-                        </div>
-                        <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
-                            <!-- Tool Call Cards -->
-                            <div v-if="msg.toolCalls && msg.toolCalls.length > 0" style="display:flex;flex-direction:column;gap:6px;">
-                                <div v-for="(tc, ti) in msg.toolCalls" :key="ti" style="border-radius:12px;border:1px solid;overflow:hidden;background:white;" :style="tc.status === 'done' ? 'border-color:#a7f3d0' : 'border-color:#e2e8f0'">
-                                    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
-                                        <div v-if="tc.status === 'running'" style="width:14px;height:14px;border:2px solid #6366f1;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div>
-                                        <div v-else-if="tc.status === 'done'" style="width:14px;height:14px;border-radius:50%;background:#10b981;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                            <i class="ph-bold ph-check" style="color:white;font-size:9px;"></i>
-                                        </div>
-                                        <i :class="['ph', tc.icon]" :style="tc.status === 'done' ? 'color:#059669;font-size:14px;flex-shrink:0;' : 'color:#6366f1;font-size:14px;flex-shrink:0;'"></i>
-                                        <span style="font-size:12px;font-weight:500;color:#334155;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ tc.label }}</span>
-                                        <span v-if="tc.status === 'running'" style="font-size:10px;color:#6366f1;flex-shrink:0;">运行中...</span>
-                                        <span v-if="tc.status === 'done'" style="font-size:10px;color:#059669;flex-shrink:0;">完成</span>
-                                    </div>
-                                    <div v-if="tc.status === 'done' && tc.result" style="border-top:1px solid #f1f5f9;padding:8px 12px;background:#f8fafc;">
-                                        <p style="font-size:11px;color:#64748b;font-family:monospace;white-space:pre-wrap;margin:0;line-height:1.5;">{{ tc.result }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Final text -->
-                            <div v-if="msg.content" style="background:#f1f5f9;border-radius:0 16px 16px 16px;padding:12px 16px;">
-                                <p style="font-size:14px;color:#1e293b;white-space:pre-wrap;margin:0;line-height:1.6;">{{ msg.content }}</p>
-                            </div>
-                            <!-- Thinking dots -->
-                            <div v-if="msg.isThinking && !msg.content" style="background:#f1f5f9;border-radius:0 16px 16px 16px;padding:12px 16px;display:inline-flex;gap:4px;align-items:center;">
-                                <span style="width:8px;height:8px;background:#94a3b8;border-radius:50%;animation:bounce 1s infinite 0ms;display:inline-block;"></span>
-                                <span style="width:8px;height:8px;background:#94a3b8;border-radius:50%;animation:bounce 1s infinite 150ms;display:inline-block;"></span>
-                                <span style="width:8px;height:8px;background:#94a3b8;border-radius:50%;animation:bounce 1s infinite 300ms;display:inline-block;"></span>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- Preset Config Card -->
-                <div v-if="showPresetCard" style="border-radius:16px;border:1px solid #c7d2fe;padding:16px;background:rgba(238,242,255,0.8);display:flex;flex-direction:column;gap:12px;">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <i class="ph ph-sliders" style="color:#4f46e5;font-size:16px;"></i>
-                        <p style="font-size:14px;font-weight:600;color:#312e81;margin:0;">配置测试</p>
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <div>
-                            <label style="display:block;font-size:12px;font-weight:500;color:#475569;margin-bottom:4px;">测试 Agent</label>
-                            <select v-model="botAgentType" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;background:white;color:#334155;">
-                                <option value="lumos">Lumos</option>
-                                <option value="finmi">Finmi</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display:block;font-size:12px;font-weight:500;color:#475569;margin-bottom:4px;">测试问题</label>
-                            <input v-model="botPresetQuestion" type="text" placeholder="输入测试问题..." style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#334155;box-sizing:border-box;" />
-                        </div>
-                    </div>
-                    <div style="display:flex;gap:8px;">
-                        <button @click="showPresetCard = false" style="flex:1;padding:8px;font-size:14px;color:#475569;background:white;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;">取消</button>
-                        <button @click="submitPresetQuestion" :disabled="botIsLoading" style="flex:1;padding:8px;font-size:14px;color:white;background:#4f46e5;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-                            <i class="ph ph-play-circle" style="font-size:16px;"></i>
-                            开始测试
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Input Bar -->
-            <div style="flex-shrink:0;border-top:1px solid #e2e8f0;padding:12px;background:white;">
-                <div style="display:flex;align-items:flex-end;gap:8px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;padding:10px 12px;">
-                    <textarea v-model="botInputText" @keydown.enter.exact.prevent="sendBotMessage" placeholder="发送消息..." rows="1" style="flex:1;background:transparent;font-size:14px;color:#1e293b;resize:none;outline:none;border:none;min-height:20px;max-height:80px;line-height:1.5;font-family:inherit;"></textarea>
-                    <button @click="sendBotMessage" :disabled="botIsLoading || !botInputText.trim()" :style="(botIsLoading || !botInputText.trim()) ? 'width:28px;height:28px;border-radius:8px;background:#e2e8f0;color:#94a3b8;border:none;cursor:not-allowed;display:flex;align-items:center;justify-content:center;flex-shrink:0;' : 'width:28px;height:28px;border-radius:8px;background:#4f46e5;color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;'">
-                        <i class="ph-fill ph-paper-plane-tilt" style="font-size:14px;"></i>
-                    </button>
-                </div>
-                <p style="font-size:10px;color:#94a3b8;text-align:center;margin:6px 0 0 0;">Enter 发送 · 内容由 AI 生成，仅供参考</p>
-            </div>
-        </div>
 
     </div>
 
@@ -2277,7 +2278,7 @@
     <script src="./js/components/DetailFunction.js?v=1774410156"></script>
     <script src="./js/components/DetailSkill.js?v=1774410156"></script>
     <script src="./js/components/DetailDictionary.js?v=1774410156"></script>
-    <script src="./js/bundle.js?v=1774947300"></script>
+    <script src="./js/bundle.js?v=1774949100"></script>
 </body>
 
 </html>
