@@ -214,13 +214,20 @@ const DetailDocument = {
         
         // ==================== 版本状态 ====================
         const currentVersion = ref({
-            version: 'v1',
-            environments: { online: 'v1', pre: 'v1', test: null }
+            version: 'v1.0.0',
+            environments: { online: null, pre: null, test: null }
         });
         const showVersionDropdown = ref(false);
         const showVersionPublish = ref(false);
         const publishForm = ref({ environment: 'test', note: '' });
         const selectedDropdownVersion = ref(null); // 下拉面板中当前选中查看的版本
+
+        // 版本号 patch 递增：v1.0.0 → v1.0.1
+        const bumpPatchVersion = (ver) => {
+            const m = (ver || 'v1.0.0').match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+            if (!m) return ver;
+            return `v${m[1]}.${m[2]}.${parseInt(m[3]) + 1}`;
+        };
         
         const createNewVersion = () => {
             const hasEnvironment = currentVersion.value.environments.online ||
@@ -228,8 +235,7 @@ const DetailDocument = {
                 currentVersion.value.environments.test;
             if (!hasEnvironment) return;
             
-            const num = parseInt(currentVersion.value.version.replace('v', '') || '1');
-            const newVersionStr = `v${num + 1}`;
+            const newVersionStr = bumpPatchVersion(currentVersion.value.version);
             
             versionHistory.value.unshift({
                 ...currentVersion.value,
@@ -247,7 +253,71 @@ const DetailDocument = {
                 environments: { online: null, pre: null, test: null }
             };
         };
-        
+
+        // ==================== 提交测试 ====================
+        const testUsers = ['张三', '李四', '王五', '赵六'];
+        const showSubmitTestModal = ref(false);
+        const submitTestForm = ref({ tester: '', note: '' });
+        const isSubmittingTest = ref(false);
+
+        const openSubmitTestModal = () => {
+            submitTestForm.value = { tester: testUsers[0], note: '' };
+            showSubmitTestModal.value = true;
+            showVersionDropdown.value = false;
+        };
+
+        const closeSubmitTestModal = () => {
+            showSubmitTestModal.value = false;
+        };
+
+        const confirmSubmitTest = () => {
+            if (!submitTestForm.value.tester) {
+                displayToast('请选择测试者');
+                return;
+            }
+            isSubmittingTest.value = true;
+            setTimeout(() => {
+                // 清除其他版本的 test 标签
+                versionHistory.value.forEach(v => {
+                    if (v.environments) v.environments.test = null;
+                });
+                currentVersion.value.environments.test = currentVersion.value.version;
+                isSubmittingTest.value = false;
+                showSubmitTestModal.value = false;
+                displayToast(`已提交测试，测试者：${submitTestForm.value.tester}`);
+            }, 800);
+        };
+
+        // ==================== 发布上线 ====================
+        const showPublishOnlineModal = ref(false);
+        const publishOnlineForm = ref({ note: '' });
+        const isPublishingOnline = ref(false);
+
+        const openPublishOnlineModal = () => {
+            publishOnlineForm.value = { note: '' };
+            showPublishOnlineModal.value = true;
+            showVersionDropdown.value = false;
+        };
+
+        const closePublishOnlineModal = () => {
+            showPublishOnlineModal.value = false;
+        };
+
+        const confirmPublishOnline = () => {
+            isPublishingOnline.value = true;
+            setTimeout(() => {
+                // 清除其他版本的 online 标签
+                versionHistory.value.forEach(v => {
+                    if (v.environments) v.environments.online = null;
+                });
+                currentVersion.value.environments.online = currentVersion.value.version;
+                currentVersion.value.publishedAt = new Date().toLocaleString('zh-CN');
+                isPublishingOnline.value = false;
+                showPublishOnlineModal.value = false;
+                displayToast('已发布上线');
+            }, 800);
+        };
+
         const openVersionPublish = () => {
             publishForm.value.environment = 'test';
             publishForm.value.note = '';
@@ -261,7 +331,6 @@ const DetailDocument = {
         
         const saveVersionPublish = () => {
             const envKey = publishForm.value.environment;
-            // 清除其他版本相同环境标签
             versionHistory.value.forEach(v => {
                 if (v.environments && v.environments[envKey]) {
                     v.environments[envKey] = null;
@@ -460,9 +529,8 @@ const DetailDocument = {
                 const isPublished = env.online || env.pre || env.test;
 
                 if (isPublished) {
-                    // 当前版本已发布，将其归档到历史，创建递增版本（不带环境标签）
-                    const num = parseInt(currentVersion.value.version.replace('v', '') || '1');
-                    const newVersionStr = `v${num + 1}`;
+                    // 当前版本已发布过（测试或生产），保存后 patch 递增，归档旧版本
+                    const newVersionStr = bumpPatchVersion(currentVersion.value.version);
 
                     versionHistory.value.unshift({
                         ...currentVersion.value,
@@ -481,7 +549,7 @@ const DetailDocument = {
                         environments: { online: null, pre: null, test: null }
                     };
 
-                    displayToast(`已保存为新版本 ${newVersionStr}`);
+                    displayToast(`已保存，版本升为 ${newVersionStr}`);
                 } else {
                     // 当前版本未发布，直接更新内容即可
                     currentVersion.value.content = htmlContent.value;
@@ -734,10 +802,8 @@ const DetailDocument = {
                     lastModifiedTime.value = '2024-03-20 16:00';
                     lastModifiedBy.value = '张三';
                     
-                    // Mock：模拟本地文件导入的文档，使「查看原文」按钮可见
-                    selectedDocType.value = 'local';
-                    originalFileName.value = `${documentForm.value.name}.pdf`;
-                    originalFileType.value = 'application/pdf';
+                    // 已有文档：普通可编辑文档
+                    selectedDocType.value = 'manual';
                     isEditing.value = false;
                     currentStep.value = 'editor';
                 }
@@ -764,6 +830,7 @@ const DetailDocument = {
                     versionHistory.value = [];
                     lastModifiedTime.value = '';
                     lastModifiedBy.value = '';
+                    currentVersion.value = { version: 'v1.0.0', environments: { online: null, pre: null, test: null } };
                     currentStep.value = 'editor';
                     // 清除isNew标记，避免重复触发
                     delete newNode.isNew;
@@ -772,13 +839,12 @@ const DetailDocument = {
                     htmlContent.value = '<h1>' + documentForm.value.name + '</h1><p>这是「' + documentForm.value.name + '」的文档内容。</p><h2>文档信息</h2><ul><li>文档ID：' + newNode.id + '</li><li>文档代码：' + documentForm.value.code + '</li></ul><h2>主要内容</h2><p>这里展示文档的主要内容...</p>';
                     
                     versionHistory.value = JSON.parse(JSON.stringify(mockVersionHistory));
-                    lastModifiedTime.value = '2024-03-20 16:00';
-                    lastModifiedBy.value = '张三';
-                    
-                    // Mock：模拟本地文件导入的文档，使「查看原文」按钮可见
-                    selectedDocType.value = 'local';
-                    originalFileName.value = `${documentForm.value.name}.pdf`;
-                    originalFileType.value = 'application/pdf';
+                    lastModifiedTime.value = '2026/3/30 16:54';
+                    lastModifiedBy.value = '当前用户';
+                    currentVersion.value = { version: 'v1.0.0', environments: { online: null, pre: null, test: null } };
+
+                    // 已有文档：普通可编辑文档
+                    selectedDocType.value = 'manual';
                     isEditing.value = false;
                     currentStep.value = 'editor';
                 }
@@ -904,6 +970,22 @@ const DetailDocument = {
             switchVersion,
             envLabel,
             envBadgeClass,
+            bumpPatchVersion,
+            // 提交测试
+            testUsers,
+            showSubmitTestModal,
+            submitTestForm,
+            isSubmittingTest,
+            openSubmitTestModal,
+            closeSubmitTestModal,
+            confirmSubmitTest,
+            // 发布上线
+            showPublishOnlineModal,
+            publishOnlineForm,
+            isPublishingOnline,
+            openPublishOnlineModal,
+            closePublishOnlineModal,
+            confirmPublishOnline,
             
             // 权限管理
             activeEditorTab,
@@ -1205,11 +1287,17 @@ const DetailDocument = {
                                     <span v-if="!currentVersion.environments.online && !currentVersion.environments.pre && currentVersion.environments.test" class="px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">测试</span>
                                     <i class="ph ph-caret-down text-xs text-slate-400"></i>
                                 </button>
-                                <!-- 发布按钮 -->
-                                <button @click="openVersionPublish"
-                                    class="flex items-center gap-1.5 px-3 py-1.5 border border-indigo-500 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-50 transition-colors">
-                                    <i class="ph ph-cloud-arrow-up text-sm"></i>
-                                    <span>发布</span>
+                                <!-- 提交测试按钮 -->
+                                <button @click="openSubmitTestModal"
+                                    class="flex items-center gap-1.5 px-3 py-1.5 border border-amber-500 text-amber-600 rounded-lg text-xs font-medium hover:bg-amber-50 transition-colors">
+                                    <i class="ph ph-flask text-sm"></i>
+                                    <span>提交测试</span>
+                                </button>
+                                <!-- 发布上线按钮 -->
+                                <button @click="openPublishOnlineModal"
+                                    class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors">
+                                    <i class="ph ph-rocket-launch text-sm"></i>
+                                    <span>发布上线</span>
                                 </button>
                                 <!-- 版本下拉面板 -->
                                 <div v-if="showVersionDropdown" @click.stop
@@ -1626,64 +1714,122 @@ const DetailDocument = {
                 </div>
             </div>
             
-            <!-- 版本发布弹窗 -->
-            <div v-if="showVersionPublish" @click="closeVersionPublish"
+            <!-- 提交测试弹窗 -->
+            <div v-if="showSubmitTestModal" @click="closeSubmitTestModal"
                 class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-                <div @click.stop class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
+                <div @click.stop class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
                     <!-- 头部 -->
-                    <div class="px-7 pt-7 pb-5 flex items-start justify-between">
-                        <div>
-                            <h3 class="text-xl font-bold text-slate-900 mb-0.5">发布新版本到对应环境</h3>
+                    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                                <i class="ph-fill ph-flask text-xl text-amber-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900">提交测试</h3>
+                                <p class="text-xs text-slate-500">当前版本：{{ currentVersion.version }}</p>
+                            </div>
                         </div>
-                        <button @click="closeVersionPublish"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600 mt-0.5">
-                            <i class="ph ph-x text-lg"></i>
+                        <button @click="closeSubmitTestModal"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
+                            <i class="ph ph-x text-xl text-slate-600"></i>
                         </button>
                     </div>
                     <!-- 内容 -->
-                    <div class="px-7 pb-6 space-y-5">
-                        <!-- 目标环境 -->
+                    <div class="p-6 space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-3">目标环境 <span class="text-red-500">*</span></label>
-                            <div class="grid grid-cols-2 gap-3">
-                                <!-- 预发环境 -->
-                                <button @click="publishForm.environment = 'pre'"
-                                    :class="['px-5 py-4 rounded-xl text-left transition-all border',
-                                        publishForm.environment === 'pre'
-                                        ? 'border-indigo-500 bg-indigo-50'
-                                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50']">
-                                    <p :class="['text-sm font-semibold mb-1', publishForm.environment === 'pre' ? 'text-indigo-700' : 'text-slate-800']">预发环境</p>
-                                    <p class="text-xs text-slate-400">发布后对预发生效</p>
-                                </button>
-                                <!-- 生产环境 -->
-                                <button @click="publishForm.environment = 'online'"
-                                    :class="['px-5 py-4 rounded-xl text-left transition-all border',
-                                        publishForm.environment === 'online'
-                                        ? 'border-indigo-500 bg-indigo-50'
-                                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50']">
-                                    <p :class="['text-sm font-semibold mb-1', publishForm.environment === 'online' ? 'text-indigo-700' : 'text-slate-800']">生产环境</p>
-                                    <p class="text-xs text-slate-400">发布后对线上生效</p>
-                                </button>
+                            <label class="block text-sm font-bold text-slate-700 mb-3">选择测试者 <span class="text-red-500">*</span></label>
+                            <div class="space-y-2">
+                                <label v-for="user in testUsers" :key="user"
+                                    :class="['flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all',
+                                        submitTestForm.tester === user
+                                        ? 'border-amber-400 bg-amber-50'
+                                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50']">
+                                    <input type="radio" :value="user" v-model="submitTestForm.tester" class="accent-amber-500">
+                                    <div class="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                                        <span class="text-xs font-bold text-indigo-600">{{ user.charAt(0) }}</span>
+                                    </div>
+                                    <span class="text-sm font-medium text-slate-800">{{ user }}</span>
+                                    <span v-if="submitTestForm.tester === user" class="ml-auto">
+                                        <i class="ph-fill ph-check-circle text-amber-500"></i>
+                                    </span>
+                                </label>
                             </div>
                         </div>
-                        <!-- 发布说明 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">测试备注</label>
+                            <textarea v-model="submitTestForm.note" rows="3"
+                                class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-none bg-slate-50"
+                                placeholder="描述本次测试内容或注意事项..."></textarea>
+                        </div>
+                    </div>
+                    <!-- 底部 -->
+                    <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                        <button @click="closeSubmitTestModal"
+                            class="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors">
+                            取消
+                        </button>
+                        <button @click="confirmSubmitTest"
+                            :disabled="!submitTestForm.tester || isSubmittingTest"
+                            :class="['px-6 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2',
+                                submitTestForm.tester && !isSubmittingTest
+                                ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm shadow-amber-200'
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed']">
+                            <i v-if="isSubmittingTest" class="ph ph-spinner animate-spin text-sm"></i>
+                            <i v-else class="ph-fill ph-flask text-sm"></i>
+                            {{ isSubmittingTest ? '提交中...' : '确认提交' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 发布上线弹窗 -->
+            <div v-if="showPublishOnlineModal" @click="closePublishOnlineModal"
+                class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+                <div @click.stop class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                    <!-- 头部 -->
+                    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                <i class="ph-fill ph-rocket-launch text-xl text-indigo-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900">发布上线</h3>
+                                <p class="text-xs text-slate-500">当前版本：{{ currentVersion.version }}，发布后线上生效</p>
+                            </div>
+                        </div>
+                        <button @click="closePublishOnlineModal"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
+                            <i class="ph ph-x text-xl text-slate-600"></i>
+                        </button>
+                    </div>
+                    <!-- 内容 -->
+                    <div class="p-6">
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2 mb-4">
+                            <i class="ph ph-warning text-amber-600 mt-0.5 flex-shrink-0"></i>
+                            <p class="text-xs text-amber-700 leading-relaxed">发布后将对线上用户生效，请确认已完成测试。</p>
+                        </div>
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-2">发布说明</label>
-                            <textarea v-model="publishForm.note" rows="4"
+                            <textarea v-model="publishOnlineForm.note" rows="4"
                                 class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none bg-slate-50"
                                 placeholder="描述本次发布的变更内容..."></textarea>
                         </div>
                     </div>
-                    <!-- 底部按钮 -->
-                    <div class="px-7 py-5 border-t border-slate-100 flex justify-end gap-3">
-                        <button @click="closeVersionPublish"
+                    <!-- 底部 -->
+                    <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                        <button @click="closePublishOnlineModal"
                             class="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors">
                             取消
                         </button>
-                        <button @click="saveVersionPublish"
-                            class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm shadow-indigo-200">
-                            <i class="ph-fill ph-rocket-launch text-sm"></i>
-                            确认发布
+                        <button @click="confirmPublishOnline"
+                            :disabled="isPublishingOnline"
+                            :class="['px-6 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2',
+                                !isPublishingOnline
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-200'
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed']">
+                            <i v-if="isPublishingOnline" class="ph ph-spinner animate-spin text-sm"></i>
+                            <i v-else class="ph-fill ph-rocket-launch text-sm"></i>
+                            {{ isPublishingOnline ? '发布中...' : '确认发布上线' }}
                         </button>
                     </div>
                 </div>
