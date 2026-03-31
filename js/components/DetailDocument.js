@@ -255,13 +255,29 @@ const DetailDocument = {
         };
 
         // ==================== 提交测试 ====================
-        const testUsers = ['张三', '李四', '王五', '赵六'];
+        const testUsers = ['张三', '李四', '王五', '赵六', '陈七', '林八', '周九', '吴十'];
         const showSubmitTestModal = ref(false);
         const submitTestForm = ref({ tester: '', note: '' });
         const isSubmittingTest = ref(false);
+        const testerSearch = ref('');
+        const showTesterDropdown = ref(false);
+
+        const filteredTestUsers = computed(() => {
+            const q = testerSearch.value.trim();
+            if (!q) return testUsers;
+            return testUsers.filter(u => u.includes(q));
+        });
+
+        const selectTester = (user) => {
+            submitTestForm.value.tester = user;
+            testerSearch.value = user;
+            showTesterDropdown.value = false;
+        };
 
         const openSubmitTestModal = () => {
-            submitTestForm.value = { tester: testUsers[0], note: '' };
+            submitTestForm.value = { tester: '', note: '' };
+            testerSearch.value = '';
+            showTesterDropdown.value = false;
             showSubmitTestModal.value = true;
             showVersionDropdown.value = false;
         };
@@ -288,7 +304,7 @@ const DetailDocument = {
             }, 800);
         };
 
-        // ==================== 发布上线 ====================
+        // ==================== 正式启用 ====================
         const showPublishOnlineModal = ref(false);
         const publishOnlineForm = ref({ note: '' });
         const isPublishingOnline = ref(false);
@@ -314,7 +330,7 @@ const DetailDocument = {
                 currentVersion.value.publishedAt = new Date().toLocaleString('zh-CN');
                 isPublishingOnline.value = false;
                 showPublishOnlineModal.value = false;
-                displayToast('已发布上线');
+                displayToast('已正式启用');
             }, 800);
         };
 
@@ -976,10 +992,14 @@ const DetailDocument = {
             showSubmitTestModal,
             submitTestForm,
             isSubmittingTest,
+            testerSearch,
+            showTesterDropdown,
+            filteredTestUsers,
+            selectTester,
             openSubmitTestModal,
             closeSubmitTestModal,
             confirmSubmitTest,
-            // 发布上线
+            // 正式启用
             showPublishOnlineModal,
             publishOnlineForm,
             isPublishingOnline,
@@ -1282,9 +1302,8 @@ const DetailDocument = {
                                     class="flex items-center gap-1.5 text-sm text-slate-700 hover:text-slate-900 transition-colors">
                                     <span class="text-slate-500 text-xs">版本：</span>
                                     <span class="font-medium">{{ currentVersion.version }}</span>
-                                    <span v-if="currentVersion.environments.pre" class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">预发</span>
-                                    <span v-if="currentVersion.environments.online" class="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">生产</span>
-                                    <span v-if="!currentVersion.environments.online && !currentVersion.environments.pre && currentVersion.environments.test" class="px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">测试</span>
+                                    <span v-if="currentVersion.environments.test" class="px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">测试</span>
+                                    <span v-if="currentVersion.environments.online" class="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">正式</span>
                                     <i class="ph ph-caret-down text-xs text-slate-400"></i>
                                 </button>
                                 <!-- 提交测试按钮 -->
@@ -1293,11 +1312,11 @@ const DetailDocument = {
                                     <i class="ph ph-flask text-sm"></i>
                                     <span>提交测试</span>
                                 </button>
-                                <!-- 发布上线按钮 -->
+                                <!-- 正式启用按钮 -->
                                 <button @click="openPublishOnlineModal"
                                     class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors">
                                     <i class="ph ph-rocket-launch text-sm"></i>
-                                    <span>发布上线</span>
+                                    <span>正式启用</span>
                                 </button>
                                 <!-- 版本下拉面板 -->
                                 <div v-if="showVersionDropdown" @click.stop
@@ -1737,22 +1756,62 @@ const DetailDocument = {
                     <!-- 内容 -->
                     <div class="p-6 space-y-4">
                         <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-3">选择测试者 <span class="text-red-500">*</span></label>
-                            <div class="space-y-2">
-                                <label v-for="user in testUsers" :key="user"
-                                    :class="['flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all',
-                                        submitTestForm.tester === user
-                                        ? 'border-amber-400 bg-amber-50'
-                                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50']">
-                                    <input type="radio" :value="user" v-model="submitTestForm.tester" class="accent-amber-500">
-                                    <div class="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                                        <span class="text-xs font-bold text-indigo-600">{{ user.charAt(0) }}</span>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">选择测试者 <span class="text-red-500">*</span></label>
+                            <!-- 搜索选择框 -->
+                            <div class="relative">
+                                <!-- 输入框 -->
+                                <div :class="['flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all',
+                                    showTesterDropdown ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200 hover:border-slate-300']">
+                                    <!-- 已选中时显示头像 -->
+                                    <div v-if="submitTestForm.tester"
+                                        class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                                        <span class="text-xs font-bold text-indigo-600">{{ submitTestForm.tester.charAt(0) }}</span>
                                     </div>
-                                    <span class="text-sm font-medium text-slate-800">{{ user }}</span>
-                                    <span v-if="submitTestForm.tester === user" class="ml-auto">
-                                        <i class="ph-fill ph-check-circle text-amber-500"></i>
-                                    </span>
-                                </label>
+                                    <i v-else class="ph ph-magnifying-glass text-slate-400 text-sm flex-shrink-0"></i>
+                                    <input
+                                        v-model="testerSearch"
+                                        @focus="showTesterDropdown = true"
+                                        @input="submitTestForm.tester = ''; showTesterDropdown = true"
+                                        @keydown.esc="showTesterDropdown = false"
+                                        type="text"
+                                        class="flex-1 text-sm outline-none bg-transparent text-slate-800 placeholder-slate-400"
+                                        placeholder="搜索测试者姓名...">
+                                    <!-- 清除按钮 -->
+                                    <button v-if="testerSearch"
+                                        @click="testerSearch = ''; submitTestForm.tester = ''; showTesterDropdown = true"
+                                        class="flex-shrink-0 text-slate-300 hover:text-slate-500 transition-colors">
+                                        <i class="ph ph-x-circle text-base"></i>
+                                    </button>
+                                    <i v-else class="ph ph-caret-down text-xs text-slate-400 flex-shrink-0"
+                                        @click="showTesterDropdown = !showTesterDropdown"></i>
+                                </div>
+                                <!-- 下拉列表 -->
+                                <div v-if="showTesterDropdown"
+                                    class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 overflow-hidden">
+                                    <div v-if="filteredTestUsers.length > 0" class="py-1 max-h-48 overflow-y-auto">
+                                        <button v-for="user in filteredTestUsers" :key="user"
+                                            @click="selectTester(user)"
+                                            :class="['w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                                                submitTestForm.tester === user
+                                                ? 'bg-amber-50 text-amber-700'
+                                                : 'hover:bg-slate-50 text-slate-700']">
+                                            <div class="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                                                <span class="text-xs font-bold text-indigo-600">{{ user.charAt(0) }}</span>
+                                            </div>
+                                            <span class="text-sm font-medium">{{ user }}</span>
+                                            <i v-if="submitTestForm.tester === user"
+                                                class="ph-fill ph-check-circle text-amber-500 ml-auto"></i>
+                                        </button>
+                                    </div>
+                                    <div v-else class="px-4 py-6 text-center text-sm text-slate-400">
+                                        <i class="ph ph-magnifying-glass block text-2xl mb-1 text-slate-300"></i>
+                                        未找到匹配的测试者
+                                    </div>
+                                </div>
+                                <!-- 点击外部关闭下拉 -->
+                                <div v-if="showTesterDropdown"
+                                    @click="showTesterDropdown = false"
+                                    class="fixed inset-0 z-[9]"></div>
                             </div>
                         </div>
                         <div>
@@ -1782,7 +1841,7 @@ const DetailDocument = {
                 </div>
             </div>
 
-            <!-- 发布上线弹窗 -->
+            <!-- 正式启用弹窗 -->
             <div v-if="showPublishOnlineModal" @click="closePublishOnlineModal"
                 class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
                 <div @click.stop class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -1793,7 +1852,7 @@ const DetailDocument = {
                                 <i class="ph-fill ph-rocket-launch text-xl text-indigo-600"></i>
                             </div>
                             <div>
-                                <h3 class="text-lg font-bold text-slate-900">发布上线</h3>
+                                <h3 class="text-lg font-bold text-slate-900">正式启用</h3>
                                 <p class="text-xs text-slate-500">当前版本：{{ currentVersion.version }}，发布后线上生效</p>
                             </div>
                         </div>
@@ -1829,7 +1888,7 @@ const DetailDocument = {
                                 : 'bg-slate-200 text-slate-400 cursor-not-allowed']">
                             <i v-if="isPublishingOnline" class="ph ph-spinner animate-spin text-sm"></i>
                             <i v-else class="ph-fill ph-rocket-launch text-sm"></i>
-                            {{ isPublishingOnline ? '发布中...' : '确认发布上线' }}
+                            {{ isPublishingOnline ? '发布中...' : '确认正式启用' }}
                         </button>
                     </div>
                 </div>
