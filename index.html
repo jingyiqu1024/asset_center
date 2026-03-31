@@ -109,6 +109,20 @@
             border-bottom-color: #6366f1;
         }
 
+        /* Bot Drawer Slide Animation */
+        .bot-drawer-enter-active,
+        .bot-drawer-leave-active {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .bot-drawer-enter-from,
+        .bot-drawer-leave-to {
+            transform: translateX(100%);
+        }
+        .bot-drawer-enter-to,
+        .bot-drawer-leave-from {
+            transform: translateX(0);
+        }
+
         .tab-content {
             min-height: 400px;
         }
@@ -641,7 +655,7 @@
         </aside>
 
         <!-- MAIN CONTENT -->
-        <main class="flex-1 flex flex-col h-full overflow-hidden bg-white relative">
+        <main :class="['flex-1 flex flex-col h-full overflow-hidden bg-white relative transition-all duration-300', showBotDrawer ? 'mr-[400px]' : '']">
             <!-- Top Bar: Global Search -->
             <div
                 class="h-14 border-b border-slate-200 flex-shrink-0 bg-white px-6 flex items-center justify-center gap-4">
@@ -708,6 +722,12 @@
                         </div>
                     </div>
                 </div>
+                <!-- Right: Bot Entry Button -->
+                <button @click="showBotDrawer = !showBotDrawer"
+                    :class="['flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border transition-all flex-shrink-0', showBotDrawer ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'text-indigo-600 bg-indigo-50 border-indigo-200 hover:bg-indigo-100']">
+                    <i class="ph ph-robot text-lg"></i>
+                    <span>Bot</span>
+                </button>
             </div>
 
             <!-- Header with Breadcrumb and Actions -->
@@ -2113,13 +2133,180 @@
                 强制 Step 3
             </button>
         </div>
+
+        <!-- ========== BOT DRAWER ========== -->
+        <transition name="bot-drawer">
+            <div v-if="showBotDrawer"
+                class="fixed top-0 right-0 bottom-0 w-[400px] bg-white border-l border-slate-200 shadow-2xl z-[200] flex flex-col"
+                style="box-shadow: -4px 0 24px rgba(0,0,0,0.08);">
+
+                <!-- Drawer Header -->
+                <div class="h-14 border-b border-slate-200 flex items-center px-4 gap-3 flex-shrink-0 bg-gradient-to-r from-indigo-50 to-white">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm">
+                        <i class="ph-fill ph-robot text-base"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-slate-900 text-sm">资源中心 Bot</p>
+                        <p class="text-xs text-emerald-500 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>在线
+                        </p>
+                    </div>
+                    <button @click="showBotDrawer = false"
+                        class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i class="ph ph-x text-base"></i>
+                    </button>
+                </div>
+
+                <!-- Messages Area -->
+                <div ref="botMessagesRef" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+
+                    <!-- Welcome + Preset Questions (shown when no messages) -->
+                    <div v-if="botMessages.length === 0" class="space-y-3">
+                        <div class="flex gap-2.5">
+                            <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 mt-0.5">
+                                <i class="ph-fill ph-robot text-sm"></i>
+                            </div>
+                            <div class="bg-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[280px]">
+                                <p class="text-sm text-slate-800">你好！我是资源中心 Bot，可以帮你测试 Agent 召回能力和数据分析。</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-400 pl-9">试试下面的问题：</p>
+                        <div class="pl-9 space-y-2">
+                            <button @click="selectPresetQuestion('测试一下文档的召回')"
+                                class="w-full text-left px-3 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-sm text-indigo-700 transition-colors flex items-center gap-2">
+                                <i class="ph ph-magnifying-glass text-indigo-500"></i>
+                                测试一下文档的召回
+                            </button>
+                            <button @click="selectPresetQuestion('帮我算一下企业应用部年龄分布')"
+                                class="w-full text-left px-3 py-2.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-sm text-purple-700 transition-colors flex items-center gap-2">
+                                <i class="ph ph-chart-bar text-purple-500"></i>
+                                帮我算一下企业应用部年龄分布
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <template v-for="(msg, idx) in botMessages" :key="idx">
+                        <!-- User Message -->
+                        <div v-if="msg.role === 'user'" class="flex justify-end">
+                            <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[280px] text-sm">
+                                {{ msg.content }}
+                            </div>
+                        </div>
+
+                        <!-- Assistant Message -->
+                        <div v-else class="flex gap-2.5">
+                            <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 mt-0.5">
+                                <i class="ph-fill ph-robot text-sm"></i>
+                            </div>
+                            <div class="flex-1 space-y-2">
+                                <!-- Tool Call Cards (渐进式) -->
+                                <div v-if="msg.toolCalls && msg.toolCalls.length > 0" class="space-y-1.5">
+                                    <div v-for="(tc, ti) in msg.toolCalls" :key="ti"
+                                        class="rounded-xl border bg-white overflow-hidden transition-all"
+                                        :class="tc.status === 'done' ? 'border-emerald-200' : 'border-slate-200'">
+                                        <div class="flex items-center gap-2 px-3 py-2">
+                                            <!-- Status Icon -->
+                                            <div v-if="tc.status === 'running'"
+                                                class="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                                            <div v-else-if="tc.status === 'done'"
+                                                class="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                                                <i class="ph-bold ph-check text-white" style="font-size:9px;"></i>
+                                            </div>
+                                            <i :class="['ph text-sm flex-shrink-0', tc.icon, tc.status === 'done' ? 'text-emerald-600' : 'text-indigo-500']"></i>
+                                            <span class="text-xs font-medium text-slate-700 flex-1 truncate">{{ tc.label }}</span>
+                                            <span v-if="tc.status === 'running'" class="text-[10px] text-indigo-500 flex-shrink-0">运行中...</span>
+                                            <span v-else-if="tc.status === 'done'" class="text-[10px] text-emerald-600 flex-shrink-0">完成</span>
+                                        </div>
+                                        <!-- Result Preview (collapsed by default) -->
+                                        <div v-if="tc.status === 'done' && tc.result"
+                                            class="border-t border-slate-100 px-3 py-2 bg-slate-50">
+                                            <p class="text-[11px] text-slate-500 font-mono leading-relaxed whitespace-pre-wrap">{{ tc.result }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Text Content (with typing effect) -->
+                                <div v-if="msg.content" class="bg-slate-100 rounded-2xl rounded-tl-sm px-4 py-3">
+                                    <p class="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">{{ msg.content }}</p>
+                                </div>
+
+                                <!-- Thinking Indicator -->
+                                <div v-if="msg.isThinking && !msg.content" class="bg-slate-100 rounded-2xl rounded-tl-sm px-4 py-3">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay:0ms"></span>
+                                        <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay:150ms"></span>
+                                        <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay:300ms"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Preset Config Card (选择 agent 和 问题) -->
+                    <div v-if="showPresetCard" class="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-sliders text-indigo-600"></i>
+                            <p class="text-sm font-semibold text-indigo-900">配置测试</p>
+                        </div>
+                        <div class="space-y-2.5">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">测试 Agent</label>
+                                <select v-model="botAgentType"
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="lumos">Lumos</option>
+                                    <option value="finmi">Finmi</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">测试问题</label>
+                                <input v-model="botPresetQuestion" type="text"
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="输入测试问题..." />
+                            </div>
+                        </div>
+                        <div class="flex gap-2 pt-1">
+                            <button @click="showPresetCard = false"
+                                class="flex-1 px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                取消
+                            </button>
+                            <button @click="submitPresetQuestion"
+                                :disabled="botIsLoading"
+                                class="flex-1 px-3 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5">
+                                <i class="ph ph-play-circle"></i>
+                                开始测试
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Bar -->
+                <div class="flex-shrink-0 border-t border-slate-200 p-3 bg-white">
+                    <div class="flex items-end gap-2 bg-slate-50 rounded-xl border border-slate-200 px-3 py-2.5 focus-within:border-indigo-300 focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
+                        <textarea v-model="botInputText"
+                            @keydown.enter.exact.prevent="sendBotMessage"
+                            placeholder="发送消息..."
+                            rows="1"
+                            class="flex-1 bg-transparent text-sm text-slate-800 resize-none outline-none placeholder-slate-400 max-h-24"
+                            style="min-height:20px; line-height:1.5;"></textarea>
+                        <button @click="sendBotMessage"
+                            :disabled="botIsLoading || !botInputText.trim()"
+                            :class="['w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all', (botIsLoading || !botInputText.trim()) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm']">
+                            <i class="ph-fill ph-paper-plane-tilt text-sm"></i>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 text-center mt-1.5">Enter 发送 · 内容由 AI 生成，仅供参考</p>
+                </div>
+            </div>
+        </transition>
+
     </div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="./js/mock_data.js?v=1774410156"></script>
     <script src="./js/utils.js?v=1774410156"></script>
-    <script src="./js/templates.js?v=1774530900"></script>
+    <script src="./js/templates.js?v=1774947000"></script>
     <script src="./js/wiki_data.js?v=1774410156"></script>
     <script src="./js/skill_data.js?v=1774410156"></script>
     <script src="./js/components/TreeItem.js?v=1774410156"></script>
@@ -2127,7 +2314,7 @@
     <script src="./js/components/DetailFunction.js?v=1774410156"></script>
     <script src="./js/components/DetailSkill.js?v=1774410156"></script>
     <script src="./js/components/DetailDictionary.js?v=1774410156"></script>
-    <script src="./js/bundle.js?v=1774530900"></script>
+    <script src="./js/bundle.js?v=1774947000"></script>
 </body>
 
 </html>

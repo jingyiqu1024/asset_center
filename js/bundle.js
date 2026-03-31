@@ -4051,6 +4051,125 @@ if __name__ == "__main__":
                 }
             });
 
+            // ============ BOT DRAWER ============
+            const showBotDrawer = ref(false);
+            const botMessages = ref([]);
+            const botInputText = ref('');
+            const botIsLoading = ref(false);
+            const showPresetCard = ref(false);
+            const presetCardQuestion = ref('');
+            const botAgentType = ref('lumos');
+            const botPresetQuestion = ref('');
+            const botMessagesRef = ref(null);
+
+            const scrollBotToBottom = () => {
+                Vue.nextTick(() => {
+                    const el = botMessagesRef.value;
+                    if (el) el.scrollTop = el.scrollHeight;
+                });
+            };
+
+            const addBotMessage = (msg) => {
+                botMessages.value.push(msg);
+                scrollBotToBottom();
+                return botMessages.value[botMessages.value.length - 1];
+            };
+
+            const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+            const typeText = async (msgObj, text) => {
+                const chars = text.split('');
+                for (const ch of chars) {
+                    msgObj.content = (msgObj.content || '') + ch;
+                    scrollBotToBottom();
+                    await sleep(18);
+                }
+            };
+
+            const runBotFlow = async (question) => {
+                botIsLoading.value = true;
+
+                // 1. 用户消息
+                addBotMessage({ role: 'user', content: `[${botAgentType.value.toUpperCase()}] ${question}` });
+
+                // 2. assistant 思考气泡
+                const assistantMsg = { role: 'assistant', isThinking: true, toolCalls: [], content: '' };
+                addBotMessage(assistantMsg);
+                await sleep(600);
+
+                const isRecall = question.includes('召回') || question.includes('文档');
+                const isAge = question.includes('年龄') || question.includes('分布');
+
+                // 工具调用序列
+                const toolSeqs = isAge ? [
+                    { icon: 'ph-magnifying-glass', label: '检索知识库文档索引', result: '找到 3 个相关文档片段（召回率 0.87）' },
+                    { icon: 'ph-database', label: '查询员工数据库 (ks.emp.leave)', result: 'SELECT age, dept FROM employees WHERE dept = "企业应用部"\n→ 返回 142 行数据' },
+                    { icon: 'ph-chart-bar', label: '计算年龄分布区间', result: '20-25岁: 18人 | 26-30岁: 43人 | 31-35岁: 51人\n36-40岁: 22人 | 41岁+: 8人' },
+                    { icon: 'ph-file-text', label: '生成分析报告', result: '平均年龄 31.4 岁，主力区间 31-35 岁（35.9%）' }
+                ] : [
+                    { icon: 'ph-magnifying-glass', label: '向量化查询召回', result: `Query: "${question}"\nTop-3 chunks 相似度: 0.92 / 0.88 / 0.81` },
+                    { icon: 'ph-sort-ascending', label: 'Rerank 精排打分', result: 'Rerank 模型: bge-reranker-v2\n精排后最优 chunk 得分: 0.94' },
+                    { icon: 'ph-file-text', label: '生成召回结果摘要', result: '命中文档: 开发环境配置指南 (wiki_common_101)\n摘要: 文档涵盖开发环境搭建流程...' }
+                ];
+
+                assistantMsg.isThinking = false;
+
+                for (const tc of toolSeqs) {
+                    const toolCall = { icon: tc.icon, label: tc.label, status: 'running', result: '' };
+                    assistantMsg.toolCalls.push(toolCall);
+                    scrollBotToBottom();
+                    await sleep(900 + Math.random() * 400);
+                    toolCall.status = 'done';
+                    toolCall.result = tc.result;
+                    scrollBotToBottom();
+                    await sleep(300);
+                }
+
+                await sleep(400);
+
+                // 最终回复
+                const finalText = isAge
+                    ? `✅ 企业应用部年龄分布分析完成（Agent: ${botAgentType.value.toUpperCase()}）\n\n📊 分布详情：\n• 20-25岁：18人（12.7%）\n• 26-30岁：43人（30.3%）\n• 31-35岁：51人（35.9%）⭐ 主力区间\n• 36-40岁：22人（15.5%）\n• 41岁+：8人（5.6%）\n\n📈 平均年龄：31.4 岁，团队以 30-35 岁骨干为主，整体偏年轻化。`
+                    : `✅ 文档召回测试完成（Agent: ${botAgentType.value.toUpperCase()}）\n\n📄 召回结果：\n命中文档「开发环境配置指南」(wiki_common_101)\n\n🔍 召回指标：\n• Top-1 相似度：0.92（优秀）\n• Rerank 精排分：0.94\n• 召回耗时：约 180ms\n\n💡 结论：文档已成功建立索引，召回质量良好，可正常为 Agent 提供上下文。`;
+
+                await typeText(assistantMsg, finalText);
+                botIsLoading.value = false;
+            };
+
+            const selectPresetQuestion = (question) => {
+                botPresetQuestion.value = question;
+                showPresetCard.value = true;
+                scrollBotToBottom();
+            };
+
+            const submitPresetQuestion = async () => {
+                if (botIsLoading.value) return;
+                showPresetCard.value = false;
+                await runBotFlow(botPresetQuestion.value);
+            };
+
+            const sendBotMessage = async () => {
+                const text = botInputText.value.trim();
+                if (!text || botIsLoading.value) return;
+                botInputText.value = '';
+                // 检查是否与预制问题匹配
+                if (text.includes('召回') || text.includes('文档') || text.includes('年龄') || text.includes('分布')) {
+                    botPresetQuestion.value = text;
+                    selectPresetQuestion(text);
+                } else {
+                    addBotMessage({ role: 'user', content: text });
+                    botIsLoading.value = true;
+                    await sleep(600);
+                    const replyMsg = { role: 'assistant', isThinking: true, toolCalls: [], content: '' };
+                    addBotMessage(replyMsg);
+                    await sleep(800);
+                    replyMsg.isThinking = false;
+                    await typeText(replyMsg, `收到您的问题「${text}」，我可以帮您测试文档召回或计算数据分析。\n\n试试发送：\n• "测试一下文档的召回"\n• "帮我算一下企业应用部年龄分布"`);
+                    botIsLoading.value = false;
+                }
+            };
+            // ============ END BOT DRAWER ============
+
             return {
                 catalogTree, selectedNode, catalogActiveTab, resourceTypeFilter, filteredChildren, selectNode, handleRenameNode, toggleNode,
                 getNodeIcon, getColor, getBgColor, getTypeLabel,
@@ -4113,7 +4232,11 @@ if __name__ == "__main__":
                 },
                 // 全局标签
                 globalTags,
-                addGlobalTag: window.App.addGlobalTag
+                addGlobalTag: window.App.addGlobalTag,
+                // Bot 对话抽屉
+                showBotDrawer, botMessages, botInputText, botIsLoading,
+                showPresetCard, botAgentType, botPresetQuestion, botMessagesRef,
+                selectPresetQuestion, submitPresetQuestion, sendBotMessage
             };
         }
     });
