@@ -4,8 +4,299 @@
     <!-- ===== Tab: 我的申请 ===== -->
     <div v-if="permissionCenterTab === 'my_applications'" class="">
 
+        <!-- HR 系统角色申请流程（已合入申请流程，此占位保留空） -->
+        <div v-if="false">
+            <!-- 成功页 -->
+            <div v-if="hrRoleApplyStep === 0" class="py-16 text-center">
+                <div class="w-16 h-16 rounded-full bg-violet-100 flex items-center justify-center mx-auto mb-4">
+                    <i class="ph ph-check-circle text-3xl text-violet-600"></i>
+                </div>
+                <h2 class="text-lg font-semibold text-slate-800 mb-2">申请已提交</h2>
+                <p class="text-slate-500 text-sm mb-6">HR系统角色已直接生效，您可在「我的申请」中查看记录</p>
+                <div class="flex gap-3 justify-center">
+                    <button @click="showHrRoleApplyFlow=false"
+                        class="px-5 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">查看我的申请</button>
+                    <button @click="resetHrRoleApply()"
+                        class="px-5 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50">再次申请</button>
+                </div>
+            </div>
+
+            <!-- 申请表单 -->
+            <div v-else-if="hrRoleApplyStep === 1">
+                <div class="mb-4 flex items-center gap-3">
+                    <button @click="showHrRoleApplyFlow=false" class="text-slate-400 hover:text-violet-600 transition-colors text-sm flex items-center gap-1">
+                        <i class="ph ph-arrow-left text-sm"></i>返回我的申请
+                    </button>
+                </div>
+                <div class="mb-5">
+                    <h2 class="text-lg font-semibold text-slate-800">申请 HR 系统角色</h2>
+                    <p class="text-sm text-slate-500 mt-1">完成以下信息后提交，角色将直接生效并与 CoreHR 权限规则联动</p>
+                </div>
+
+                <div class="space-y-6">
+
+                    <!-- 1. 申请对象 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">1</span>
+                            申请对象
+                        </div>
+                        <div class="flex gap-3 mb-4">
+                            <button @click="hrRoleApplyMode='self'; clearHrRoleProxyTarget()"
+                                :class="['flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-medium transition-all',
+                                    hrRoleApplyMode==='self' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-600 hover:border-violet-300']">
+                                <i class="ph ph-user text-base"></i>为自己申请
+                            </button>
+                            <button @click="hrRoleApplyMode='proxy'"
+                                :class="['flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-medium transition-all',
+                                    hrRoleApplyMode==='proxy' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-600 hover:border-violet-300']">
+                                <i class="ph ph-users text-base"></i>替他人申请
+                            </button>
+                        </div>
+
+                        <!-- 代申请搜索 -->
+                        <div v-if="hrRoleApplyMode==='proxy'" class="p-4 border border-violet-200 bg-violet-50/40 rounded-xl">
+                            <div class="text-xs font-medium text-slate-600 mb-2">搜索被申请人 <span class="text-red-500">*</span></div>
+                            <div class="relative">
+                                <div class="flex gap-2">
+                                    <div class="relative flex-1">
+                                        <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                                        <input v-model="hrRoleProxySearchQuery"
+                                            @input="searchHrRoleProxyUsers()"
+                                            @blur="setTimeout(hideHrRoleProxyResults, 200)"
+                                            placeholder="输入姓名或邮箱前缀搜索..."
+                                            class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 bg-white">
+                                    </div>
+                                    <button v-if="hrRoleProxyTargetId" @click="clearHrRoleProxyTarget()"
+                                        class="px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-500 hover:bg-slate-50 flex items-center gap-1">
+                                        <i class="ph ph-x text-xs"></i>清除
+                                    </button>
+                                </div>
+                                <div v-if="hrRoleProxySearchResults.length > 0"
+                                    class="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                                    <button v-for="u in hrRoleProxySearchResults" :key="u.id"
+                                        @mousedown.prevent="selectHrRoleProxyTarget(u)"
+                                        class="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-violet-50 transition-colors border-b border-slate-50 last:border-b-0">
+                                        <div class="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold flex-shrink-0">{{ u.name.slice(0,1) }}</div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-medium text-slate-800">{{ u.name }}</div>
+                                            <div class="text-xs text-slate-500">{{ u.department }} · {{ u.userName }}</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-if="hrRoleProxyTargetId" class="mt-2 flex items-center gap-2 text-sm text-violet-700">
+                                <i class="ph ph-check-circle text-base"></i>
+                                <span class="font-medium">{{ hrRoleProxyTargetName }}</span>
+                                <span class="text-slate-400 text-xs">{{ hrRoleProxyTargetDept }}</span>
+                            </div>
+                        </div>
+
+                        <!-- 申请人信息展示 -->
+                        <div class="mt-3 p-3 bg-slate-50 rounded-lg flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-bold text-sm flex-shrink-0">
+                                {{ hrRoleApplyMode==='self' ? currentUserInfo.name.slice(0,1) : (hrRoleProxyTargetName ? hrRoleProxyTargetName.slice(0,1) : '?') }}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-slate-800">
+                                    {{ hrRoleApplyMode==='self' ? currentUserInfo.name : (hrRoleProxyTargetName || '待选择') }}
+                                </div>
+                                <div class="text-xs text-slate-500 mt-0.5">
+                                    <span class="font-medium text-slate-600">当前所在部门：</span>{{ hrRoleApplicantDeptName }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 选择 HR 系统角色 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">2</span>
+                            选择角色 <span class="text-xs text-slate-400 font-normal ml-1">（单选，每人仅可持有一个 HR 系统角色）</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            <button v-for="role in hrPositionRoles" :key="role.id"
+                                @click="hrRoleSelectedId = role.id"
+                                :class="['flex items-start gap-3 p-3.5 border-2 rounded-xl text-left transition-all',
+                                    hrRoleSelectedId === role.id
+                                        ? 'border-violet-500 bg-violet-50'
+                                        : 'border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/30']">
+                                <div :class="['w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-base',
+                                    hrRoleSelectedId === role.id ? 'bg-violet-100 text-violet-600' : 'bg-slate-100 text-slate-500']">
+                                    <i :class="'ph ' + role.icon"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div :class="['text-sm font-semibold', hrRoleSelectedId === role.id ? 'text-violet-700' : 'text-slate-800']">{{ role.name }}</div>
+                                    <div class="text-xs text-slate-500 mt-0.5 leading-relaxed">{{ role.description }}</div>
+                                </div>
+                                <div v-if="hrRoleSelectedId === role.id" class="flex-shrink-0 mt-0.5">
+                                    <i class="ph ph-check-circle text-violet-500 text-lg"></i>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. 选择负责部门（组织树） -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">3</span>
+                            选择负责部门 <span class="text-xs text-slate-400 font-normal ml-1">（可多选，将覆盖该部门及子部门）</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-3 pl-6.5">选中部门后，您将对该部门（及其子部门）员工负责</p>
+
+                        <!-- 已选标签 -->
+                        <div v-if="hrRoleSelectedOrgIds.length > 0" class="flex flex-wrap gap-1.5 mb-3">
+                            <span v-for="name in hrRoleSelectedOrgNames" :key="name"
+                                class="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-100 text-violet-700 rounded-full text-xs font-medium">
+                                <i class="ph ph-buildings text-xs"></i>{{ name }}
+                            </span>
+                        </div>
+
+                        <!-- 组织树 -->
+                        <div class="border border-slate-200 rounded-lg overflow-hidden max-h-72 overflow-y-auto">
+                            <template v-for="node in hrOrgTree" :key="node.id">
+                                <!-- 递归渲染组织树节点（用内联递归模拟） -->
+                                <div>
+                                    <!-- 根节点 -->
+                                    <div class="flex items-center gap-1 px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 cursor-pointer"
+                                        style="padding-left: 12px">
+                                        <button @click.stop="toggleHrOrgExpand(node.id)" class="w-5 h-5 flex items-center justify-center text-slate-400 flex-shrink-0">
+                                            <i :class="['ph text-sm', hrOrgTreeExpandedIds.includes(node.id) ? 'ph-caret-down' : 'ph-caret-right']"></i>
+                                        </button>
+                                        <button @click.stop="toggleHrOrgSelect(node.id)"
+                                            :class="['w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                                                hrRoleSelectedOrgIds.includes(node.id) ? 'border-violet-500 bg-violet-500' : 'border-slate-300']">
+                                            <i v-if="hrRoleSelectedOrgIds.includes(node.id)" class="ph ph-check text-white text-[10px]"></i>
+                                        </button>
+                                        <i class="ph ph-buildings text-slate-400 text-sm flex-shrink-0"></i>
+                                        <span class="text-sm text-slate-700 flex-1">{{ node.name }}</span>
+                                        <span class="text-xs text-slate-400">{{ node.empCount }}人</span>
+                                    </div>
+
+                                    <!-- L1 children -->
+                                    <template v-if="hrOrgTreeExpandedIds.includes(node.id) && node.children">
+                                        <template v-for="c1 in node.children" :key="c1.id">
+                                            <div class="flex items-center gap-1 px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 cursor-pointer"
+                                                style="padding-left: 36px">
+                                                <button @click.stop="toggleHrOrgExpand(c1.id)" class="w-5 h-5 flex items-center justify-center text-slate-400 flex-shrink-0">
+                                                    <i v-if="c1.children && c1.children.length" :class="['ph text-sm', hrOrgTreeExpandedIds.includes(c1.id) ? 'ph-caret-down' : 'ph-caret-right']"></i>
+                                                    <span v-else class="w-4"></span>
+                                                </button>
+                                                <button @click.stop="toggleHrOrgSelect(c1.id)"
+                                                    :class="['w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                                                        hrRoleSelectedOrgIds.includes(c1.id) ? 'border-violet-500 bg-violet-500' : 'border-slate-300']">
+                                                    <i v-if="hrRoleSelectedOrgIds.includes(c1.id)" class="ph ph-check text-white text-[10px]"></i>
+                                                </button>
+                                                <i class="ph ph-folder text-slate-400 text-sm flex-shrink-0"></i>
+                                                <span class="text-sm text-slate-700 flex-1">{{ c1.name }}</span>
+                                                <span class="text-xs text-slate-400">{{ c1.empCount }}人</span>
+                                            </div>
+
+                                            <!-- L2 children -->
+                                            <template v-if="hrOrgTreeExpandedIds.includes(c1.id) && c1.children">
+                                                <div v-for="c2 in c1.children" :key="c2.id"
+                                                    class="flex items-center gap-1 px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 cursor-pointer"
+                                                    style="padding-left: 60px">
+                                                    <span class="w-5 flex-shrink-0"></span>
+                                                    <button @click.stop="toggleHrOrgSelect(c2.id)"
+                                                        :class="['w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                                                            hrRoleSelectedOrgIds.includes(c2.id) ? 'border-violet-500 bg-violet-500' : 'border-slate-300']">
+                                                        <i v-if="hrRoleSelectedOrgIds.includes(c2.id)" class="ph ph-check text-white text-[10px]"></i>
+                                                    </button>
+                                                    <i class="ph ph-dot-outline text-slate-400 text-sm flex-shrink-0"></i>
+                                                    <span class="text-sm text-slate-700 flex-1">{{ c2.name }}</span>
+                                                    <span class="text-xs text-slate-400">{{ c2.empCount }}人</span>
+                                                </div>
+                                            </template>
+                                        </template>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 4. 有效期 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">4</span>
+                            有效期
+                        </div>
+                        <div class="flex items-center gap-2 pl-6.5">
+                            <div class="inline-flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-200 rounded-lg text-sm text-violet-700">
+                                <i class="ph ph-infinity text-base"></i>
+                                <span class="font-medium">长期有效</span>
+                            </div>
+                            <span class="text-xs text-slate-400">HR 系统角色默认长期生效，如需变更请联系HR管理员</span>
+                        </div>
+                    </div>
+
+                    <!-- 5. BP 管辖员工预览（仅 BP 类角色 + 已选部门时展示） -->
+                    <div v-if="isBpRole && hrRoleSelectedOrgIds.length > 0" class="bg-white border border-violet-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">
+                                <i class="ph ph-eye text-[10px]"></i>
+                            </span>
+                            BP 管辖员工预览
+                            <span class="ml-1 px-2 py-0.5 bg-violet-100 text-violet-600 rounded-full text-xs font-medium">{{ hrRoleManagedEmployees.length }}人</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-3 pl-6.5">以下员工的 BP 字段将在角色生效后被调整为您，请确认范围正确</p>
+
+                        <div v-if="hrRoleManagedEmployees.length === 0" class="pl-6.5 text-sm text-slate-400">所选部门暂无员工数据</div>
+                        <div v-else class="border border-slate-200 rounded-lg overflow-hidden max-h-56 overflow-y-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">姓名</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">级别</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">职位</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">部门</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="emp in hrRoleManagedEmployees" :key="emp.id"
+                                        class="border-b border-slate-100 last:border-b-0 hover:bg-slate-50">
+                                        <td class="px-3 py-2 text-sm text-slate-800 font-medium">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold flex-shrink-0">{{ emp.name.slice(0,1) }}</div>
+                                                {{ emp.name }}
+                                            </div>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">{{ emp.level }}</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-sm text-slate-600">{{ emp.title }}</td>
+                                        <td class="px-3 py-2 text-xs text-slate-400">{{ emp.dept }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 提交栏 -->
+                <div class="sticky bottom-0 bg-white border-t border-slate-200 mt-6 px-0 py-4 flex items-center gap-3">
+                    <button @click="submitHrRoleApplication()"
+                        :disabled="!hrRoleApplyFormValid"
+                        :class="['px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                            hrRoleApplyFormValid
+                                ? 'bg-violet-600 text-white hover:bg-violet-700'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed']">
+                        提交申请
+                    </button>
+                    <button @click="showHrRoleApplyFlow=false"
+                        class="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50">取消</button>
+                    <span v-if="!hrRoleApplyFormValid" class="text-xs text-slate-400">
+                        <span v-if="hrRoleApplyMode==='proxy' && !hrRoleProxyTargetId">请先选择被申请人 · </span>
+                        <span v-if="!hrRoleSelectedId">请选择角色 · </span>
+                        <span v-if="hrRoleSelectedOrgIds.length===0">请选择负责部门</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
         <!-- 申请流程（原页面替换） -->
-        <div v-if="showApplyFlow">
+        <div v-else-if="showApplyFlow">
             <!-- 提交成功 -->
             <div v-if="permissionApplyStep === 0" class="py-12 text-center">
                 <h2 class="text-lg font-semibold text-slate-800 mb-2">申请已提交</h2>
@@ -19,17 +310,415 @@
                 </div>
             </div>
 
-            <!-- Step 1: 选择业务域 + 授权方式（合为一页） -->
+            <!-- Step 1: 选择申请类型 + 对应流程 -->
             <div v-else-if="permissionApplyStep === 1">
                 <div class="mb-4 flex items-center gap-3">
-                    <button @click="showApplyFlow=false" class="text-slate-400 hover:text-indigo-600 transition-colors text-sm">返回我的申请</button>
+                    <button @click="showApplyFlow=false" class="text-slate-400 hover:text-indigo-600 transition-colors text-sm flex items-center gap-1">
+                        <i class="ph ph-arrow-left text-sm"></i>返回我的申请
+                    </button>
                 </div>
                 <div class="mb-5">
-                    <h2 class="text-lg font-semibold text-slate-800">申请数据访问权限</h2>
-                    <p class="text-sm text-slate-500 mt-1">选择申请对象、业务域和授权方式</p>
+                    <h2 class="text-lg font-semibold text-slate-800">申请权限</h2>
+                    <p class="text-sm text-slate-500 mt-1">请先选择申请类型</p>
                 </div>
 
-                <!-- 0. 申请对象（为自己 / 替他人）-->
+                <!-- 申请类型选择 -->
+                <div class="mb-6">
+                    <div class="grid grid-cols-2 gap-3">
+                        <button @click="permissionApplyType='data'"
+                            :class="['flex items-start gap-3 p-4 border-2 rounded-xl text-left transition-all',
+                                permissionApplyType !== 'hr_role' && permissionApplyType !== '' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-300']">
+                            <div :class="['w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+                                permissionApplyType !== 'hr_role' && permissionApplyType !== '' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400']">
+                                <i class="ph ph-shield-check text-lg"></i>
+                            </div>
+                            <div>
+                                <div :class="['text-sm font-semibold', permissionApplyType !== 'hr_role' && permissionApplyType !== '' ? 'text-indigo-700' : 'text-slate-800']">数据权限</div>
+                                <div class="text-xs text-slate-500 mt-0.5">申请数据表的访问权限，支持按角色、按表或复制他人权限</div>
+                            </div>
+                        </button>
+                        <button @click="permissionApplyType='hr_role'"
+                            :class="['flex items-start gap-3 p-4 border-2 rounded-xl text-left transition-all',
+                                permissionApplyType === 'hr_role' ? 'border-violet-500 bg-violet-50' : 'border-slate-200 bg-white hover:border-violet-300']">
+                            <div :class="['w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+                                permissionApplyType === 'hr_role' ? 'bg-violet-100 text-violet-600' : 'bg-slate-100 text-slate-400']">
+                                <i class="ph ph-identification-badge text-lg"></i>
+                            </div>
+                            <div>
+                                <div :class="['text-sm font-semibold', permissionApplyType === 'hr_role' ? 'text-violet-700' : 'text-slate-800']">HR系统角色</div>
+                                <div class="text-xs text-slate-500 mt-0.5">申请成为组织上的标准角色，如HRBP、Recruiter等，角色生效后直接联动权限</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- HR 系统角色申请表单（内联） -->
+                <div v-if="permissionApplyType === 'hr_role'" class="space-y-6">
+                    <!-- 1. 申请对象 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">1</span>
+                            申请对象
+                        </div>
+                        <div class="flex gap-3 mb-4">
+                            <button @click="hrRoleApplyMode='self'; clearHrRoleProxyTarget()"
+                                :class="['flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-medium transition-all',
+                                    hrRoleApplyMode==='self' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-600 hover:border-violet-300']">
+                                <i class="ph ph-user text-base"></i>为自己申请
+                            </button>
+                            <button @click="hrRoleApplyMode='proxy'"
+                                :class="['flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-medium transition-all',
+                                    hrRoleApplyMode==='proxy' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-600 hover:border-violet-300']">
+                                <i class="ph ph-users text-base"></i>替他人申请
+                            </button>
+                        </div>
+                        <div v-if="hrRoleApplyMode==='proxy'" class="p-4 border border-violet-200 bg-violet-50/40 rounded-xl mb-3">
+                            <div class="text-xs font-medium text-slate-600 mb-2">搜索被申请人 <span class="text-red-500">*</span></div>
+                            <div class="relative">
+                                <div class="flex gap-2">
+                                    <div class="relative flex-1">
+                                        <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                                        <input v-model="hrRoleProxySearchQuery"
+                                            @input="searchHrRoleProxyUsers()"
+                                            @blur="setTimeout(hideHrRoleProxyResults, 200)"
+                                            placeholder="输入姓名或邮箱前缀搜索..."
+                                            class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 bg-white">
+                                    </div>
+                                    <button v-if="hrRoleProxyTargetId" @click="clearHrRoleProxyTarget()"
+                                        class="px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-500 hover:bg-slate-50 flex items-center gap-1">
+                                        <i class="ph ph-x text-xs"></i>清除
+                                    </button>
+                                </div>
+                                <div v-if="hrRoleProxySearchResults.length > 0"
+                                    class="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                                    <button v-for="u in hrRoleProxySearchResults" :key="u.id"
+                                        @mousedown.prevent="selectHrRoleProxyTarget(u)"
+                                        class="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-violet-50 transition-colors border-b border-slate-50 last:border-b-0">
+                                        <div class="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold flex-shrink-0">{{ u.name.slice(0,1) }}</div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-medium text-slate-800">{{ u.name }}</div>
+                                            <div class="text-xs text-slate-500">{{ u.department }} · {{ u.userName }}</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-if="hrRoleProxyTargetId" class="mt-2 flex items-center gap-2 text-sm text-violet-700">
+                                <i class="ph ph-check-circle text-base"></i>
+                                <span class="font-medium">{{ hrRoleProxyTargetName }}</span>
+                                <span class="text-slate-400 text-xs">{{ hrRoleProxyTargetDept }}</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-lg flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-bold text-sm flex-shrink-0">
+                                {{ hrRoleApplyMode==='self' ? currentUserInfo.name.slice(0,1) : (hrRoleProxyTargetName ? hrRoleProxyTargetName.slice(0,1) : '?') }}
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-slate-800">{{ hrRoleApplyMode==='self' ? currentUserInfo.name : (hrRoleProxyTargetName || '待选择') }}</div>
+                                <div class="text-xs text-slate-500 mt-0.5"><span class="font-medium text-slate-600">当前所在部门：</span>{{ hrRoleApplicantDeptName }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 选择角色 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">2</span>
+                            选择角色 <span class="text-xs text-slate-400 font-normal ml-1">单选，每人仅可持有一个 HR 系统角色</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button v-for="role in hrPositionRoles" :key="role.id"
+                                @click="hrRoleSelectedId = role.id; hrLookupPersonSelected=null; hrLookupPersonOrgs=[]"
+                                :class="['px-3.5 py-2 rounded-lg border text-sm font-medium transition-all',
+                                    hrRoleSelectedId === role.id
+                                        ? 'border-violet-500 bg-violet-50 text-violet-700'
+                                        : 'border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50/40']">
+                                {{ role.name }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. 选择负责部门 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">3</span>
+                            选择负责部门 <span class="text-xs text-slate-400 font-normal ml-1">可多选</span>
+                        </div>
+
+                        <!-- 已选部门 tags -->
+                        <div v-if="hrRoleSelectedOrgIds.length > 0" class="flex flex-wrap gap-1.5 mb-3">
+                            <span v-for="orgId in hrRoleSelectedOrgIds" :key="orgId"
+                                class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-violet-50 border border-violet-200 text-violet-700 rounded-full text-xs font-medium">
+                                <i class="ph ph-buildings text-xs"></i>
+                                {{ hrRoleSelectedOrgNames[hrRoleSelectedOrgIds.indexOf(orgId)] || orgId }}
+                                <button @click="removeHrOrgSelected(orgId)" class="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-violet-200 transition-colors">
+                                    <i class="ph ph-x text-[9px]"></i>
+                                </button>
+                            </span>
+                        </div>
+
+                        <!-- 搜索框 + 工具入口 -->
+                        <div class="flex gap-2 mb-2">
+                            <div class="relative flex-1">
+                                <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                                <input v-model="hrOrgSearchQuery"
+                                    @input="searchHrOrgs()"
+                                    @blur="hideHrOrgSearchDropdown()"
+                                    @focus="searchHrOrgs()"
+                                    placeholder="搜索部门名称..."
+                                    class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 bg-white">
+                                <!-- 搜索下拉 -->
+                                <div v-if="hrOrgSearchDropdownVisible && hrOrgSearchResults.length > 0"
+                                    class="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                                    <button v-for="org in hrOrgSearchResults" :key="org.id"
+                                        @mousedown.prevent="selectHrOrgFromSearch(org)"
+                                        :class="['flex items-center justify-between w-full px-3 py-2.5 text-left transition-colors border-b border-slate-50 last:border-b-0',
+                                            hrRoleSelectedOrgIds.includes(org.id) ? 'bg-violet-50' : 'hover:bg-violet-50/60']">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <i class="ph ph-buildings text-slate-400 text-sm flex-shrink-0"></i>
+                                            <span class="text-sm text-slate-800 font-medium">{{ org.name }}</span>
+                                            <span class="text-xs text-slate-400 flex-shrink-0">{{ org.empCount }}人</span>
+                                        </div>
+                                        <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+                                            <span v-if="org.holder" class="text-xs text-slate-500 flex items-center gap-1">
+                                                <i class="ph ph-user-circle text-slate-400"></i>
+                                                当前：{{ org.holder.name }}
+                                            </span>
+                                            <span v-else-if="hrRoleSelectedId" class="text-xs text-slate-400 italic">暂无</span>
+                                            <i v-if="hrRoleSelectedOrgIds.includes(org.id)" class="ph ph-check-circle text-violet-500 text-base"></i>
+                                        </div>
+                                    </button>
+                                </div>
+                                <div v-if="hrOrgSearchDropdownVisible && hrOrgSearchResults.length === 0 && hrOrgSearchQuery.trim()"
+                                    class="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg px-4 py-3 text-sm text-slate-400 text-center">
+                                    未找到匹配部门
+                                </div>
+                            </div>
+                            <!-- 查某人负责部门工具入口按钮 -->
+                            <button @click="hrLookupModalVisible = true; hrLookupPersonQuery=''; hrLookupPersonSelected=null; hrLookupPersonOrgs=[]"
+                                :title="hrRoleSelectedId ? '查某人负责的部门并快速选中' : '请先选择角色'"
+                                :class="['flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all',
+                                    hrRoleSelectedId
+                                        ? 'border-violet-200 bg-violet-50 text-violet-600 hover:bg-violet-100'
+                                        : 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed']"
+                                :disabled="!hrRoleSelectedId">
+                                <i class="ph ph-user-magnifying-glass text-base"></i>
+                                按人查
+                            </button>
+                        </div>
+
+                        <!-- 包含子组织勾选 -->
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs text-slate-500 select-none mb-1">
+                            <button @click="hrOrgIncludeChildren = !hrOrgIncludeChildren"
+                                :class="['w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0',
+                                    hrOrgIncludeChildren ? 'border-violet-500 bg-violet-500' : 'border-slate-300 bg-white']">
+                                <i v-if="hrOrgIncludeChildren" class="ph ph-check text-white text-[9px]"></i>
+                            </button>
+                            选中时自动包含所有子组织
+                        </label>
+
+                        <!-- 管辖员工预览入口（BP 类角色 + 已选部门时显示） -->
+                        <div v-if="isBpRole && hrRoleSelectedOrgIds.length > 0" class="flex items-center gap-2 mt-3">
+                            <button @click="hrEmpPreviewVisible = true"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-600 text-xs font-medium hover:bg-violet-100 transition-colors">
+                                <i class="ph ph-users text-sm"></i>
+                                查看管辖员工
+                                <span class="ml-0.5 px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded-full text-xs font-semibold">{{ hrRoleManagedEmployees.length }}</span>
+                            </button>
+                            <span class="text-xs text-slate-400">以下部门员工将划入你的管辖范围</span>
+                        </div>
+
+                        <!-- 管辖员工弹窗 -->
+                        <div v-if="hrEmpPreviewVisible"
+                            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                            style="background:rgba(15,15,20,0.45);"
+                            @click.self="hrEmpPreviewVisible=false">
+                            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col" style="max-height:80vh">
+                                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-shrink-0">
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-800">管辖员工预览</div>
+                                        <div class="text-xs text-slate-400 mt-0.5">
+                                            共 <span class="font-medium text-slate-600">{{ hrRoleManagedEmployees.length }}</span> 人，来自已选 {{ hrRoleSelectedOrgIds.length }} 个部门
+                                        </div>
+                                    </div>
+                                    <button @click="hrEmpPreviewVisible=false"
+                                        class="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
+                                        <i class="ph ph-x text-sm"></i>
+                                    </button>
+                                </div>
+                                <div class="flex-1 overflow-y-auto">
+                                    <div v-if="hrRoleManagedEmployees.length === 0" class="flex items-center justify-center py-12 text-sm text-slate-400">
+                                        所选部门暂无员工数据
+                                    </div>
+                                    <table v-else class="w-full text-xs">
+                                        <thead class="bg-slate-50 sticky top-0 z-10 border-b border-slate-100">
+                                            <tr>
+                                                <th class="text-left px-4 py-2.5 text-slate-500 font-medium">姓名</th>
+                                                <th class="text-left px-4 py-2.5 text-slate-500 font-medium">组织路径</th>
+                                                <th class="text-left px-4 py-2.5 text-slate-500 font-medium">原BP</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="emp in hrRoleManagedEmployees" :key="emp.id"
+                                                class="border-b border-slate-50 last:border-b-0 hover:bg-violet-50/40 transition-colors">
+                                                <td class="px-4 py-2.5">
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 text-xs font-bold flex-shrink-0">{{ emp.name.slice(0,1) }}</div>
+                                                        <span class="text-slate-800 font-medium">{{ emp.name }}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-2.5 text-slate-500 max-w-[180px]">
+                                                    <span class="block truncate" :title="emp.orgPath">{{ emp.orgPath }}</span>
+                                                </td>
+                                                <td class="px-4 py-2.5">
+                                                    <span v-if="emp.originalBp" class="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs">
+                                                        <i class="ph ph-user text-slate-400 text-xs"></i>{{ emp.originalBp }}
+                                                    </span>
+                                                    <span v-else class="text-slate-300 italic">—</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="px-5 py-4 border-t border-slate-100 flex-shrink-0 flex justify-end">
+                                    <button @click="hrEmpPreviewVisible=false"
+                                        class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors">
+                                        关闭
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 查某人负责部门 — 弹窗 -->
+                        <div v-if="hrLookupModalVisible"
+                            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                            style="background:rgba(15,15,20,0.45);"
+                            @click.self="hrLookupModalVisible=false">
+                            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style="max-height:80vh">
+                                <!-- 弹窗头部 -->
+                                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-800">按人查负责部门</div>
+                                        <div class="text-xs text-slate-400 mt-0.5">
+                                            查询某人作为
+                                            <span class="font-medium text-violet-600">{{ hrPositionRoles.find(r=>r.id===hrRoleSelectedId)?.name }}</span>
+                                            负责的部门，一键选中
+                                        </div>
+                                    </div>
+                                    <button @click="hrLookupModalVisible=false"
+                                        class="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
+                                        <i class="ph ph-x text-sm"></i>
+                                    </button>
+                                </div>
+                                <!-- 弹窗内容 -->
+                                <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                                    <!-- 搜索人 -->
+                                    <div class="relative">
+                                        <i class="ph ph-user absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                                        <input v-model="hrLookupPersonQuery"
+                                            @input="searchLookupPerson()"
+                                            @blur="hideLookupDropdown()"
+                                            placeholder="输入姓名搜索..."
+                                            autofocus
+                                            class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 bg-white">
+                                        <div v-if="hrLookupDropdownVisible && hrLookupPersonResults.length > 0"
+                                            class="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                                            <button v-for="u in hrLookupPersonResults" :key="u.id"
+                                                @mousedown.prevent="selectLookupPerson(u)"
+                                                class="flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-violet-50 transition-colors border-b border-slate-50 last:border-b-0">
+                                                <div class="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 text-xs font-bold flex-shrink-0">{{ u.name.slice(0,1) }}</div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="text-sm text-slate-800 font-medium">{{ u.name }}</div>
+                                                    <div class="text-xs text-slate-400">{{ u.department }}</div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- 查询结果 -->
+                                    <div v-if="hrLookupPersonSelected">
+                                        <div v-if="hrLookupPersonOrgs.length > 0">
+                                            <div class="text-xs text-slate-500 mb-2">
+                                                <span class="font-semibold text-slate-700">{{ hrLookupPersonSelected.name }}</span>
+                                                当前作为
+                                                <span class="text-violet-600 font-medium">{{ hrPositionRoles.find(r=>r.id===hrRoleSelectedId)?.name }}</span>
+                                                负责的部门（{{ hrLookupPersonOrgs.length }} 个）：
+                                            </div>
+                                            <div class="space-y-1.5">
+                                                <div v-for="org in hrLookupPersonOrgs" :key="org.id"
+                                                    class="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                    <i class="ph ph-buildings text-slate-400 text-sm flex-shrink-0"></i>
+                                                    <span class="text-sm text-slate-700 flex-1">{{ org.name }}</span>
+                                                    <span class="text-xs text-slate-400">{{ org.empCount }}人</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div v-else class="flex items-center gap-2 px-3 py-3 bg-slate-50 rounded-lg text-sm text-slate-400">
+                                            <i class="ph ph-info text-slate-300 text-base"></i>
+                                            {{ hrLookupPersonSelected.name }} 目前没有作为该角色负责的部门
+                                        </div>
+                                    </div>
+
+                                    <div v-else-if="!hrLookupPersonQuery" class="text-xs text-slate-400 text-center py-4">
+                                        输入姓名开始搜索
+                                    </div>
+                                </div>
+                                <!-- 弹窗底部 -->
+                                <div class="px-5 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                                    <button @click="hrLookupModalVisible=false"
+                                        class="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                                        取消
+                                    </button>
+                                    <button
+                                        @click="applyLookupOrgs(); hrLookupModalVisible=false"
+                                        :disabled="!hrLookupPersonSelected || hrLookupPersonOrgs.length === 0"
+                                        :class="['px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                                            hrLookupPersonSelected && hrLookupPersonOrgs.length > 0
+                                                ? 'bg-violet-600 text-white hover:bg-violet-700'
+                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed']">
+                                        一键选中以上 {{ hrLookupPersonOrgs.length || '' }} 个部门
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. 申请原因 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5">
+                        <div class="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">4</span>
+                            申请原因 <span class="text-red-400 text-xs font-normal ml-1">*</span>
+                        </div>
+                        <textarea v-model="hrRoleApplyReason"
+                            placeholder="请说明申请该角色的原因，如接替某人工作、新增负责范围等..."
+                            rows="3"
+                            class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 resize-none leading-relaxed"></textarea>
+                    </div>
+
+
+
+                    <!-- 提交栏 -->
+                    <div class="flex items-center gap-3 pt-2 pb-4">
+                        <button @click="submitHrRoleApplication()"
+                            :disabled="!hrRoleApplyFormValid"
+                            :class="['px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                                hrRoleApplyFormValid ? 'bg-violet-600 text-white hover:bg-violet-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed']">
+                            提交申请
+                        </button>
+                        <button @click="showApplyFlow=false; permissionApplyType=''"
+                            class="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50">取消</button>
+                        <span v-if="!hrRoleApplyFormValid" class="text-xs text-slate-400">
+                            <span v-if="hrRoleApplyMode==='proxy' && !hrRoleProxyTargetId">请先选择被申请人 · </span>
+                            <span v-if="!hrRoleSelectedId">请选择角色 · </span>
+                            <span v-if="hrRoleSelectedOrgIds.length===0">请选择负责部门 · </span>
+                            <span v-if="!hrRoleApplyReason.trim()">请填写申请原因</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 数据权限流程：原有内容（申请对象 + 业务域 + 授权方式） -->
+                <template v-if="permissionApplyType !== 'hr_role' && permissionApplyType !== ''">
+
+                <!-- 申请对象（为自己 / 替他人）-->
                 <div class="mb-6">
                     <div class="text-sm font-medium text-slate-700 mb-2">1. 申请对象</div>
                     <div class="flex gap-3 mb-3">
@@ -131,12 +820,13 @@
                 <!-- 下一步按钮 -->
                 <div class="mt-4 flex justify-end">
                     <button @click="permissionApplyStep=2"
-                        :disabled="!permissionApplyForm.domainId || !permissionApplyType || (proxyApplyMode==='proxy' && !proxyApplyTargetId)"
+                        :disabled="!permissionApplyForm.domainId || !['standard','custom','copy'].includes(permissionApplyType) || (proxyApplyMode==='proxy' && !proxyApplyTargetId)"
                         :class="['px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                            (permissionApplyForm.domainId && permissionApplyType && (proxyApplyMode==='self' || proxyApplyTargetId)) ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed']">
+                            (permissionApplyForm.domainId && ['standard','custom','copy'].includes(permissionApplyType) && (proxyApplyMode==='self' || proxyApplyTargetId)) ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed']">
                         下一步
                     </button>
                 </div>
+                </template>
             </div>
 
             <!-- 标准权限申请（按角色） -->
@@ -1206,8 +1896,12 @@
         <div v-else>
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-slate-800">我的申请</h2>
-                <button @click="startPermissionApply(''); showApplyFlow=true"
-                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">申请权限</button>
+                <div class="flex items-center gap-2">
+                    <button @click="startPermissionApply(''); showApplyFlow=true"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors flex items-center gap-1.5">
+                        <i class="ph ph-plus text-base"></i>申请权限
+                    </button>
+                </div>
             </div>
 
             <div class="mb-4 bg-white border border-slate-200 rounded-lg px-4 py-3">

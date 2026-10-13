@@ -603,6 +603,239 @@
             }
         ];
 
+    // ========== 组织树 Mock 数据 ==========
+    var orgTree = [
+        {
+            id: 'org_ks', name: '快手科技', level: 0, parentId: null, empCount: 12000,
+            children: [
+                {
+                    id: 'org_product', name: '产品技术中心', level: 1, parentId: 'org_ks', empCount: 4500,
+                    children: [
+                        { id: 'org_product_pm', name: '产品部', level: 2, parentId: 'org_product', empCount: 320, children: [] },
+                        { id: 'org_product_tech', name: '技术部', level: 2, parentId: 'org_product', empCount: 1800, children: [
+                            { id: 'org_product_tech_infra', name: '基础架构组', level: 3, parentId: 'org_product_tech', empCount: 200, children: [] },
+                            { id: 'org_product_tech_be', name: '后端开发组', level: 3, parentId: 'org_product_tech', empCount: 600, children: [] },
+                            { id: 'org_product_tech_fe', name: '前端开发组', level: 3, parentId: 'org_product_tech', empCount: 300, children: [] }
+                        ]},
+                        { id: 'org_product_data', name: '数据工程部', level: 2, parentId: 'org_product', empCount: 280, children: [] }
+                    ]
+                },
+                {
+                    id: 'org_commercial', name: '商业化事业群', level: 1, parentId: 'org_ks', empCount: 2800,
+                    children: [
+                        { id: 'org_commercial_ad', name: '广告营销部', level: 2, parentId: 'org_commercial', empCount: 850, children: [] },
+                        { id: 'org_commercial_bd', name: '商务拓展部', level: 2, parentId: 'org_commercial', empCount: 620, children: [] },
+                        { id: 'org_commercial_ops', name: '运营中台', level: 2, parentId: 'org_commercial', empCount: 430, children: [] }
+                    ]
+                },
+                {
+                    id: 'org_content', name: '内容生态事业群', level: 1, parentId: 'org_ks', empCount: 1600,
+                    children: [
+                        { id: 'org_content_creator', name: '创作者生态部', level: 2, parentId: 'org_content', empCount: 480, children: [] },
+                        { id: 'org_content_live', name: '直播业务部', level: 2, parentId: 'org_content', empCount: 560, children: [] }
+                    ]
+                },
+                {
+                    id: 'org_hr', name: '人力资源中心', level: 1, parentId: 'org_ks', empCount: 380,
+                    children: [
+                        { id: 'org_hr_hrbp', name: 'HRBP团队', level: 2, parentId: 'org_hr', empCount: 85, children: [] },
+                        { id: 'org_hr_od', name: 'OD组织发展', level: 2, parentId: 'org_hr', empCount: 40, children: [] },
+                        { id: 'org_hr_recruit', name: '招聘团队', level: 2, parentId: 'org_hr', empCount: 90, children: [] },
+                        { id: 'org_hr_comp', name: '薪酬福利团队', level: 2, parentId: 'org_hr', empCount: 55, children: [] }
+                    ]
+                },
+                {
+                    id: 'org_finance', name: '财务中心', level: 1, parentId: 'org_ks', empCount: 450,
+                    children: [
+                        { id: 'org_finance_acc', name: '会计核算部', level: 2, parentId: 'org_finance', empCount: 130, children: [] },
+                        { id: 'org_finance_bp', name: '财务BP部', level: 2, parentId: 'org_finance', empCount: 80, children: [] }
+                    ]
+                }
+            ]
+        }
+    ];
+
+    // 组织树扁平化（供搜索用）
+    var orgFlatList = [];
+    var flattenOrg = function(nodes) {
+        nodes.forEach(function(n) {
+            orgFlatList.push({ id: n.id, name: n.name, level: n.level, parentId: n.parentId, empCount: n.empCount });
+            if (n.children && n.children.length) flattenOrg(n.children);
+        });
+    };
+    flattenOrg(orgTree);
+
+    // ========== HR 岗位角色定义 ==========
+    var hrPositionRoles = [
+        { id: 'role_hrbp',      name: 'HRBP',            description: '人力资源业务伙伴，负责对接指定业务部门的全方位 HR 支持', icon: 'ph-handshake' },
+        { id: 'role_odbp',      name: 'ODBP',              description: '组织发展业务伙伴，负责组织诊断、人才发展和组织效能提升', icon: 'ph-tree-structure' },
+        { id: 'role_erbp',      name: 'ERBP',             description: '员工关系业务伙伴，负责员工关系管理、劳动合规与员工体验', icon: 'ph-heart-handshake' },
+        { id: 'role_recruiter', name: 'Recruiter',         description: '招聘专员，负责特定业务线或职能的招聘执行工作', icon: 'ph-user-plus' },
+        { id: 'role_rec_leader',name: 'Recruiter Leader',  description: '招聘负责人，统筹管辖范围内的招聘策略与团队管理', icon: 'ph-users-three' },
+        { id: 'role_bphead',    name: 'BP Head',           description: 'BP 负责人，对某一大业务域的 HR 整体策略与交付负责', icon: 'ph-crown-simple' },
+        { id: 'role_bpleader',  name: 'BP Leader',         description: 'BP 团队 Leader，负责管辖范围内 BP 团队的能力建设和日常管理', icon: 'ph-medal' }
+    ];
+
+    // ========== 员工 Mock 数据（用于 BP 管辖员工预览）==========
+    // 按部门分组，每个部门 6-10 人
+    var mockEmployeesByOrg = {
+        'org_product_pm': [
+            { id: 'e001', name: '张宇航', level: 'E7', title: '高级产品经理', dept: '产品部', orgPath: '快手 / 产品线 / 产品策略部', originalBp: '马倩倩' },
+            { id: 'e002', name: '李思雨', level: 'E6', title: '产品经理', dept: '产品部', orgPath: '快手 / 产品线 / 产品策略部', originalBp: '马倩倩' },
+            { id: 'e003', name: '王晓明', level: 'E8', title: '资深产品经理', dept: '产品部', orgPath: '快手 / 产品线 / 产品策略部', originalBp: '马倩倩' },
+            { id: 'e004', name: '陈静怡', level: 'E5', title: '产品专员', dept: '产品部', orgPath: '快手 / 产品线 / 产品策略部', originalBp: '马倩倩' },
+            { id: 'e005', name: '刘子豪', level: 'E6', title: '产品经理', dept: '产品部', orgPath: '快手 / 产品线 / 产品策略部', originalBp: '马倩倩' },
+            { id: 'e006', name: '赵美琳', level: 'E9', title: '产品总监', dept: '产品部', orgPath: '快手 / 产品线 / 产品策略部', originalBp: '马倩倩' }
+        ],
+        'org_product_tech': [
+            { id: 'e007', name: '孙浩然', level: 'E7', title: '高级工程师', dept: '技术部', orgPath: '快手 / 产品线 / 产品技术部', originalBp: '宋佳慧' },
+            { id: 'e008', name: '周鑫', level: 'E8', title: '资深工程师', dept: '技术部', orgPath: '快手 / 产品线 / 产品技术部', originalBp: '宋佳慧' },
+            { id: 'e009', name: '吴月', level: 'E6', title: '工程师', dept: '技术部', orgPath: '快手 / 产品线 / 产品技术部', originalBp: '宋佳慧' },
+            { id: 'e010', name: '郑伟国', level: 'E9', title: '技术专家', dept: '技术部', orgPath: '快手 / 产品线 / 产品技术部', originalBp: '宋佳慧' },
+            { id: 'e011', name: '冯婷婷', level: 'E5', title: '初级工程师', dept: '技术部', orgPath: '快手 / 产品线 / 产品技术部', originalBp: '宋佳慧' },
+            { id: 'e012', name: '蒋昊', level: 'E7', title: '高级工程师', dept: '技术部', orgPath: '快手 / 产品线 / 产品技术部', originalBp: '宋佳慧' },
+            { id: 'e013', name: '苏磊', level: 'E6', title: '工程师', dept: '技术部', orgPath: '快手 / 产品线 / 产品技术部', originalBp: '宋佳慧' }
+        ],
+        'org_product_tech_infra': [
+            { id: 'e014', name: '林大伟', level: 'E8', title: '资深架构师', dept: '基础架构组', orgPath: '快手 / 产品线 / 产品技术部 / 基础架构组', originalBp: '宋佳慧' },
+            { id: 'e015', name: '许晓冬', level: 'E7', title: '高级工程师', dept: '基础架构组', orgPath: '快手 / 产品线 / 产品技术部 / 基础架构组', originalBp: '宋佳慧' },
+            { id: 'e016', name: '潘悦', level: 'E6', title: '工程师', dept: '基础架构组', orgPath: '快手 / 产品线 / 产品技术部 / 基础架构组', originalBp: '宋佳慧' }
+        ],
+        'org_product_tech_be': [
+            { id: 'e017', name: '韩雪峰', level: 'E7', title: '高级后端工程师', dept: '后端开发组', orgPath: '快手 / 产品线 / 产品技术部 / 后端开发组', originalBp: '宋佳慧' },
+            { id: 'e018', name: '杨柳', level: 'E6', title: '后端工程师', dept: '后端开发组', orgPath: '快手 / 产品线 / 产品技术部 / 后端开发组', originalBp: '宋佳慧' },
+            { id: 'e019', name: '谢天', level: 'E8', title: '技术专家', dept: '后端开发组', orgPath: '快手 / 产品线 / 产品技术部 / 后端开发组', originalBp: '宋佳慧' },
+            { id: 'e020', name: '高燕', level: 'E5', title: '初级工程师', dept: '后端开发组', orgPath: '快手 / 产品线 / 产品技术部 / 后端开发组', originalBp: '宋佳慧' }
+        ],
+        'org_product_tech_fe': [
+            { id: 'e021', name: '曹阳', level: 'E7', title: '高级前端工程师', dept: '前端开发组', orgPath: '快手 / 产品线 / 产品技术部 / 前端开发组', originalBp: null },
+            { id: 'e022', name: '彭敏', level: 'E6', title: '前端工程师', dept: '前端开发组', orgPath: '快手 / 产品线 / 产品技术部 / 前端开发组', originalBp: null },
+            { id: 'e023', name: '丁磊', level: 'E5', title: '前端工程师', dept: '前端开发组', orgPath: '快手 / 产品线 / 产品技术部 / 前端开发组', originalBp: null }
+        ],
+        'org_commercial_ad': [
+            { id: 'e024', name: '黄志远', level: 'E7', title: '高级营销专家', dept: '广告营销部', orgPath: '快手 / 商业化 / 广告营销部', originalBp: '郑晓燕' },
+            { id: 'e025', name: '程欢', level: 'E6', title: '营销专员', dept: '广告营销部', orgPath: '快手 / 商业化 / 广告营销部', originalBp: '郑晓燕' },
+            { id: 'e026', name: '傅颖', level: 'E8', title: '营销总监', dept: '广告营销部', orgPath: '快手 / 商业化 / 广告营销部', originalBp: '郑晓燕' },
+            { id: 'e027', name: '叶志', level: 'E5', title: '营销助理', dept: '广告营销部', orgPath: '快手 / 商业化 / 广告营销部', originalBp: '郑晓燕' }
+        ],
+        'org_commercial_bd': [
+            { id: 'e028', name: '方思远', level: 'E7', title: '商务经理', dept: '商务拓展部', orgPath: '快手 / 商业化 / 商务拓展部', originalBp: null },
+            { id: 'e029', name: '邓晓红', level: 'E6', title: '商务专员', dept: '商务拓展部', orgPath: '快手 / 商业化 / 商务拓展部', originalBp: null },
+            { id: 'e030', name: '唐飞', level: 'E8', title: '高级商务经理', dept: '商务拓展部', orgPath: '快手 / 商业化 / 商务拓展部', originalBp: null }
+        ],
+        'org_content_creator': [
+            { id: 'e031', name: '薛洁', level: 'E6', title: '运营专员', dept: '创作者生态部', orgPath: '快手 / 内容生态 / 创作者生态部', originalBp: '李梦瑶' },
+            { id: 'e032', name: '崔涛', level: 'E7', title: '高级运营专家', dept: '创作者生态部', orgPath: '快手 / 内容生态 / 创作者生态部', originalBp: '李梦瑶' },
+            { id: 'e033', name: '段明', level: 'E5', title: '运营助理', dept: '创作者生态部', orgPath: '快手 / 内容生态 / 创作者生态部', originalBp: '李梦瑶' }
+        ],
+        'org_hr_hrbp': [
+            { id: 'e034', name: '陈思思', level: 'E7', title: 'HRBP', dept: 'HRBP团队', orgPath: '快手 / 人力资源中心 / HRBP团队', originalBp: null },
+            { id: 'e035', name: '宋佳慧', level: 'E6', title: 'HRBP', dept: 'HRBP团队', orgPath: '快手 / 人力资源中心 / HRBP团队', originalBp: null },
+            { id: 'e036', name: '任睿', level: 'E8', title: '资深HRBP', dept: 'HRBP团队', orgPath: '快手 / 人力资源中心 / HRBP团队', originalBp: null }
+        ],
+        'org_hr_recruit': [
+            { id: 'e037', name: '魏芳', level: 'E6', title: '招聘专员', dept: '招聘团队', orgPath: '快手 / 人力资源中心 / 招聘团队', originalBp: null },
+            { id: 'e038', name: '贾楠', level: 'E7', title: '高级招聘专员', dept: '招聘团队', orgPath: '快手 / 人力资源中心 / 招聘团队', originalBp: null }
+        ]
+    };
+
+    // 获取某组织（含子组织）下的所有员工
+    var getEmployeesByOrg = function(orgId) {
+        var result = [];
+        var collect = function(id) {
+            if (mockEmployeesByOrg[id]) result = result.concat(mockEmployeesByOrg[id]);
+            var node = orgFlatList.find(function(n) { return n.id === id; });
+            // 找子节点
+            orgFlatList.filter(function(n) { return n.parentId === id; }).forEach(function(child) {
+                collect(child.id);
+            });
+        };
+        collect(orgId);
+        return result;
+    };
+
+    // ========== 各组织各角色当前持有人 ==========
+    // 结构：{ orgId: { roleId: { id, name, userName } | null } }
+    var orgRoleHolders = {
+        'org_ks':                 { role_hrbp: null, role_odbp: { id: 'u_holder_1', name: '刘芳', userName: 'liufang' }, role_bphead: { id: 'u_holder_2', name: '张晓东', userName: 'zhangxiaodong' }, role_bpleader: null, role_erbp: null, role_recruiter: null, role_rec_leader: null },
+        'org_product':            { role_hrbp: { id: 'u_holder_3', name: '马倩倩', userName: 'maqianqian' }, role_odbp: { id: 'u_holder_4', name: '吴建国', userName: 'wujianguo' }, role_erbp: null, role_recruiter: null, role_rec_leader: { id: 'u_holder_5', name: '周海燕', userName: 'zhoughaiyan' }, role_bphead: null, role_bpleader: null },
+        'org_product_pm':         { role_hrbp: { id: 'u_holder_6', name: '陈思思', userName: 'chenss' }, role_odbp: null, role_erbp: null, role_recruiter: { id: 'u_holder_7', name: '贾楠', userName: 'jianan' }, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_product_tech':       { role_hrbp: { id: 'u_holder_8', name: '宋佳慧', userName: 'songjh' }, role_odbp: null, role_erbp: null, role_recruiter: { id: 'u_holder_9', name: '魏芳', userName: 'weifang' }, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_product_tech_infra': { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_product_tech_be':    { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: { id: 'u_holder_10', name: '任睿', userName: 'renrui' }, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_product_tech_fe':    { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_product_data':       { role_hrbp: { id: 'u_holder_11', name: '曲景怡', userName: 'qujingyi' }, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_commercial':         { role_hrbp: { id: 'u_holder_12', name: '郑晓燕', userName: 'zhengxy' }, role_odbp: null, role_erbp: { id: 'u_holder_13', name: '赵磊', userName: 'zhaolei' }, role_recruiter: null, role_rec_leader: { id: 'u_holder_14', name: '钱伟', userName: 'qianwei' }, role_bphead: null, role_bpleader: null },
+        'org_commercial_ad':      { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: { id: 'u_holder_15', name: '孙艳', userName: 'sunyan' }, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_commercial_bd':      { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_commercial_ops':     { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_content':            { role_hrbp: { id: 'u_holder_16', name: '李梦瑶', userName: 'limengyao' }, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_content_creator':    { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: { id: 'u_holder_17', name: '王涛', userName: 'wangtao' }, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_content_live':       { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_hr':                 { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: { id: 'u_holder_18', name: '吴雪梅', userName: 'wuxuemei' }, role_bpleader: { id: 'u_holder_19', name: '张建平', userName: 'zhangjp' } },
+        'org_hr_hrbp':            { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: null, role_bphead: null, role_bpleader: null },
+        'org_hr_recruit':         { role_hrbp: null, role_odbp: null, role_erbp: null, role_recruiter: null, role_rec_leader: { id: 'u_holder_20', name: '林小红', userName: 'linxh' }, role_bphead: null, role_bpleader: null }
+    };
+
+    // 搜索组织（关键词命中，不包含子组织）
+    var searchOrgs = function(keyword) {
+        if (!keyword || !keyword.trim()) return [];
+        var kw = keyword.trim().toLowerCase();
+        return orgFlatList.filter(function(n) {
+            return n.name.toLowerCase().indexOf(kw) >= 0 || n.id.toLowerCase().indexOf(kw) >= 0;
+        });
+    };
+
+    // 获取某人作为某角色负责的所有部门
+    var getOrgsByRoleHolder = function(userName, roleId) {
+        var result = [];
+        Object.keys(orgRoleHolders).forEach(function(orgId) {
+            var holder = orgRoleHolders[orgId] && orgRoleHolders[orgId][roleId];
+            if (holder && holder.userName === userName) {
+                var org = orgFlatList.find(function(n) { return n.id === orgId; });
+                if (org) result.push(org);
+            }
+        });
+        return result;
+    };
+
+    // 获取某组织某角色的当前持有人
+    var getRoleHolder = function(orgId, roleId) {
+        return (orgRoleHolders[orgId] && orgRoleHolders[orgId][roleId]) || null;
+    };
+
+    // 搜索用户（用于「查某人负责部门」工具）
+    var allUsers = [
+        { id: 'u_holder_1', name: '刘芳', userName: 'liufang', department: '人力资源中心' },
+        { id: 'u_holder_2', name: '张晓东', userName: 'zhangxiaodong', department: '人力资源中心' },
+        { id: 'u_holder_3', name: '马倩倩', userName: 'maqianqian', department: 'HRBP团队' },
+        { id: 'u_holder_4', name: '吴建国', userName: 'wujianguo', department: '组织发展部' },
+        { id: 'u_holder_5', name: '周海燕', userName: 'zhoughaiyan', department: '招聘团队' },
+        { id: 'u_holder_6', name: '陈思思', userName: 'chenss', department: 'HRBP团队' },
+        { id: 'u_holder_7', name: '贾楠', userName: 'jianan', department: '招聘团队' },
+        { id: 'u_holder_8', name: '宋佳慧', userName: 'songjh', department: 'HRBP团队' },
+        { id: 'u_holder_9', name: '魏芳', userName: 'weifang', department: '招聘团队' },
+        { id: 'u_holder_10', name: '任睿', userName: 'renrui', department: 'HRBP团队' },
+        { id: 'u_holder_11', name: '曲景怡', userName: 'qujingyi', department: 'HRBP团队' },
+        { id: 'u_holder_12', name: '郑晓燕', userName: 'zhengxy', department: 'HRBP团队' },
+        { id: 'u_holder_13', name: '赵磊', userName: 'zhaolei', department: '员工关系部' },
+        { id: 'u_holder_14', name: '钱伟', userName: 'qianwei', department: '招聘团队' },
+        { id: 'u_holder_15', name: '孙艳', userName: 'sunyan', department: '招聘团队' },
+        { id: 'u_holder_16', name: '李梦瑶', userName: 'limengyao', department: 'HRBP团队' },
+        { id: 'u_holder_17', name: '王涛', userName: 'wangtao', department: '招聘团队' },
+        { id: 'u_holder_18', name: '吴雪梅', userName: 'wuxuemei', department: '人力资源中心' },
+        { id: 'u_holder_19', name: '张建平', userName: 'zhangjp', department: '人力资源中心' },
+        { id: 'u_holder_20', name: '林小红', userName: 'linxh', department: '招聘团队' }
+    ];
+
+    var searchHrUsers = function(keyword) {
+        if (!keyword || !keyword.trim()) return [];
+        var kw = keyword.trim().toLowerCase();
+        return allUsers.filter(function(u) {
+            return u.name.indexOf(kw) >= 0 || u.userName.toLowerCase().indexOf(kw) >= 0;
+        }).slice(0, 8);
+    };
+
     window.HR_MOCK = {
         fieldCategories: fieldCategories,
         fieldChineseNameMap: fieldChineseNameMap,
@@ -611,6 +844,32 @@
 
         // HR 域下所有表（用于权限中心 availableTablesForColumnPermission）
         tables: enrichTables(_rawTables),
+
+        // 组织树
+        orgTree: orgTree,
+        orgFlatList: orgFlatList,
+
+        // HR 岗位角色定义
+        hrPositionRoles: hrPositionRoles,
+
+        // 各组织各角色当前持有人
+        orgRoleHolders: orgRoleHolders,
+
+        // 搜索组织（关键词命中，不含子组织）
+        searchOrgs: searchOrgs,
+
+        // 获取某人作为某角色负责的部门列表
+        getOrgsByRoleHolder: getOrgsByRoleHolder,
+
+        // 获取某组织某角色的当前持有人
+        getRoleHolder: getRoleHolder,
+
+        // 搜索 HR 用户（用于「替代查询」工具）
+        searchHrUsers: searchHrUsers,
+        allUsers: allUsers,
+
+        // 按组织获取员工（含子组织）
+        getEmployeesByOrg: getEmployeesByOrg,
 
         // 预定义行权限规则（按表申请时使用）
         rowPermRules: [

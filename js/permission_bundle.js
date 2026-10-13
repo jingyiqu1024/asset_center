@@ -2120,6 +2120,286 @@ const viewingAppDetail = ref(null);
         myPermSelectedIdx.value = 0;
     });
 
+    // ========== HR 系统角色申请 ==========
+
+    const showHrRoleApplyFlow = ref(false);
+    const hrRoleApplyStep = ref(1); // 1=填写申请信息, 0=成功页
+
+    // 申请人信息
+    const hrRoleApplyMode = ref('self'); // 'self' | 'proxy'
+    const hrRoleProxyTargetId = ref(null);
+    const hrRoleProxyTargetName = ref('');
+    const hrRoleProxyTargetDept = ref('');
+    const hrRoleProxySearchQuery = ref('');
+    const hrRoleProxySearchResults = ref([]);
+
+    // 申请人自己的信息（mock 当前用户）
+    const currentUserInfo = ref({
+        id: 'u_current',
+        name: '曲景怡',
+        dept: '人力资源中心 / HRBP团队',
+        deptId: 'org_hr_hrbp',
+        level: 'E7',
+        title: 'HRBP'
+    });
+
+    // 申请的角色
+    const hrRoleSelectedId = ref(null);
+
+    // 负责的组织（多选）
+    const hrRoleSelectedOrgIds = ref([]);
+
+    // 组织树展开状态
+    const hrOrgTreeExpandedIds = ref(['org_ks', 'org_product', 'org_commercial', 'org_content', 'org_hr', 'org_finance']);
+
+    const hrOrgTree = window.HR_MOCK ? window.HR_MOCK.orgTree : [];
+    const hrPositionRoles = window.HR_MOCK ? window.HR_MOCK.hrPositionRoles : [];
+
+    // 管辖员工弹窗可见性
+    const hrEmpPreviewVisible = ref(false);
+
+    // 判断角色是否是 BP 类（需要展示管辖员工预览）
+    const isBpRole = computed(() => {
+        return ['role_hrbp', 'role_odbp', 'role_erbp', 'role_bphead', 'role_bpleader'].includes(hrRoleSelectedId.value);
+    });
+
+    // 管辖员工预览（仅 BP 类角色）
+    const hrRoleManagedEmployees = computed(() => {
+        if (!isBpRole.value || hrRoleSelectedOrgIds.value.length === 0) return [];
+        const seen = new Set();
+        const result = [];
+        hrRoleSelectedOrgIds.value.forEach(orgId => {
+            const emps = window.HR_MOCK ? window.HR_MOCK.getEmployeesByOrg(orgId) : [];
+            emps.forEach(e => {
+                if (!seen.has(e.id)) {
+                    seen.add(e.id);
+                    result.push(e);
+                }
+            });
+        });
+        return result;
+    });
+
+    // 当前申请人（自己或代理目标）的所在部门名
+    const hrRoleApplicantDeptName = computed(() => {
+        if (hrRoleApplyMode.value === 'self') return currentUserInfo.value.dept;
+        return hrRoleProxyTargetDept.value || '—';
+    });
+
+    // 已选组织的名称列表（用于展示）
+    const hrRoleSelectedOrgNames = computed(() => {
+        if (!window.HR_MOCK) return [];
+        return hrRoleSelectedOrgIds.value.map(id => {
+            const n = window.HR_MOCK.orgFlatList.find(o => o.id === id);
+            return n ? n.name : id;
+        });
+    });
+
+    // 搜索代申请人（复用已有 mock 员工池）
+    const searchHrRoleProxyUsers = () => {
+        const q = hrRoleProxySearchQuery.value.trim().toLowerCase();
+        if (!q) { hrRoleProxySearchResults.value = []; return; }
+        const pool = [
+            { id: 'u001', name: '陈思思', department: 'HRBP团队', userName: 'chensisi03' },
+            { id: 'u002', name: '宋佳慧', department: 'HRBP团队', userName: 'songjiahui' },
+            { id: 'u003', name: '任睿', department: 'OD组织发展', userName: 'renrui' },
+            { id: 'u004', name: '魏芳', department: '招聘团队', userName: 'weifang' },
+            { id: 'u005', name: '贾楠', department: '招聘团队', userName: 'jianan' },
+            { id: 'u006', name: '张宇航', department: '产品部', userName: 'zhangyuhang' },
+            { id: 'u007', name: '李思雨', department: '产品部', userName: 'lisiyu' },
+        ];
+        hrRoleProxySearchResults.value = pool.filter(u =>
+            u.name.includes(q) || u.userName.toLowerCase().includes(q)
+        ).slice(0, 5);
+    };
+
+    const selectHrRoleProxyTarget = (u) => {
+        hrRoleProxyTargetId.value = u.id;
+        hrRoleProxyTargetName.value = u.name;
+        hrRoleProxyTargetDept.value = u.department;
+        hrRoleProxySearchQuery.value = u.name;
+        hrRoleProxySearchResults.value = [];
+    };
+
+    const clearHrRoleProxyTarget = () => {
+        hrRoleProxyTargetId.value = null;
+        hrRoleProxyTargetName.value = '';
+        hrRoleProxyTargetDept.value = '';
+        hrRoleProxySearchQuery.value = '';
+    };
+
+    const hideHrRoleProxyResults = () => {
+        hrRoleProxySearchResults.value = [];
+    };
+
+    // 切换组织树节点展开
+    const toggleHrOrgExpand = (orgId) => {
+        const idx = hrOrgTreeExpandedIds.value.indexOf(orgId);
+        if (idx >= 0) hrOrgTreeExpandedIds.value.splice(idx, 1);
+        else hrOrgTreeExpandedIds.value.push(orgId);
+    };
+
+    // 切换组织选中（多选）
+    const toggleHrOrgSelect = (orgId) => {
+        const idx = hrRoleSelectedOrgIds.value.indexOf(orgId);
+        if (idx >= 0) hrRoleSelectedOrgIds.value.splice(idx, 1);
+        else hrRoleSelectedOrgIds.value.push(orgId);
+    };
+
+    // ========== HR 组织搜索 & 工具函数 ==========
+    const hrOrgSearchQuery = ref('');
+    const hrOrgSearchResults = ref([]);
+    const hrOrgIncludeChildren = ref(false);
+    const hrOrgSearchDropdownVisible = ref(false);
+
+    // 查询某人负责部门工具
+    const hrLookupPersonQuery = ref('');
+    const hrLookupPersonResults = ref([]);  // 搜索结果列表
+    const hrLookupPersonSelected = ref(null); // { id, name, userName, department }
+    const hrLookupPersonOrgs = ref([]);  // 该人负责的部门列表
+    const hrLookupDropdownVisible = ref(false);
+    const hrLookupModalVisible = ref(false);
+
+    // 申请原因
+    const hrRoleApplyReason = ref('');
+
+    const searchHrOrgs = () => {
+        const q = hrOrgSearchQuery.value.trim();
+        if (!q) { hrOrgSearchResults.value = []; hrOrgSearchDropdownVisible.value = false; return; }
+        const roleId = hrRoleSelectedId.value;
+        hrOrgSearchResults.value = window.HR_MOCK.searchOrgs(q).map(org => ({
+            ...org,
+            holder: roleId ? window.HR_MOCK.getRoleHolder(org.id, roleId) : null
+        }));
+        hrOrgSearchDropdownVisible.value = true;
+    };
+
+    const selectHrOrgFromSearch = (org) => {
+        // 主组织加入选中
+        if (!hrRoleSelectedOrgIds.value.includes(org.id)) {
+            hrRoleSelectedOrgIds.value.push(org.id);
+        }
+        // 如勾选"包含子组织"，把所有子孙也加入
+        if (hrOrgIncludeChildren.value) {
+            const addChildren = (id) => {
+                window.HR_MOCK.orgFlatList.filter(n => n.parentId === id).forEach(child => {
+                    if (!hrRoleSelectedOrgIds.value.includes(child.id)) {
+                        hrRoleSelectedOrgIds.value.push(child.id);
+                    }
+                    addChildren(child.id);
+                });
+            };
+            addChildren(org.id);
+        }
+        hrOrgSearchQuery.value = '';
+        hrOrgSearchResults.value = [];
+        hrOrgSearchDropdownVisible.value = false;
+    };
+
+    const removeHrOrgSelected = (orgId) => {
+        hrRoleSelectedOrgIds.value = hrRoleSelectedOrgIds.value.filter(id => id !== orgId);
+    };
+
+    const hideHrOrgSearchDropdown = () => {
+        setTimeout(() => { hrOrgSearchDropdownVisible.value = false; }, 180);
+    };
+
+    // 查某人负责部门 — 搜索人
+    const searchLookupPerson = () => {
+        const q = hrLookupPersonQuery.value.trim();
+        if (!q) { hrLookupPersonResults.value = []; hrLookupDropdownVisible.value = false; return; }
+        hrLookupPersonResults.value = window.HR_MOCK.searchHrUsers(q);
+        hrLookupDropdownVisible.value = true;
+    };
+
+    const selectLookupPerson = (user) => {
+        hrLookupPersonSelected.value = user;
+        hrLookupPersonQuery.value = user.name;
+        hrLookupPersonResults.value = [];
+        hrLookupDropdownVisible.value = false;
+        // 查询该人作为当前角色负责的部门
+        const roleId = hrRoleSelectedId.value;
+        if (roleId) {
+            hrLookupPersonOrgs.value = window.HR_MOCK.getOrgsByRoleHolder(user.userName, roleId);
+        } else {
+            hrLookupPersonOrgs.value = [];
+        }
+    };
+
+    const hideLookupDropdown = () => {
+        setTimeout(() => { hrLookupDropdownVisible.value = false; }, 180);
+    };
+
+    const applyLookupOrgs = () => {
+        hrLookupPersonOrgs.value.forEach(org => {
+            if (!hrRoleSelectedOrgIds.value.includes(org.id)) {
+                hrRoleSelectedOrgIds.value.push(org.id);
+            }
+        });
+        // 清空查找工具
+        hrLookupPersonQuery.value = '';
+        hrLookupPersonSelected.value = null;
+        hrLookupPersonOrgs.value = [];
+    };
+
+    // 表单校验
+    const hrRoleApplyFormValid = computed(() => {
+        if (hrRoleApplyMode.value === 'proxy' && !hrRoleProxyTargetId.value) return false;
+        if (!hrRoleSelectedId.value) return false;
+        if (hrRoleSelectedOrgIds.value.length === 0) return false;
+        if (!hrRoleApplyReason.value.trim()) return false;
+        return true;
+    });
+
+    // 提交
+    const submitHrRoleApplication = () => {
+        if (!hrRoleApplyFormValid.value) return;
+        const role = hrPositionRoles.find(r => r.id === hrRoleSelectedId.value);
+        const applicant = hrRoleApplyMode.value === 'self'
+            ? { id: currentUserInfo.value.id, name: currentUserInfo.value.name }
+            : { id: hrRoleProxyTargetId.value, name: hrRoleProxyTargetName.value };
+
+        const newApp = {
+            id: 'app_hr_' + Date.now(),
+            applyType: 'hr_role',
+            appliedAt: new Date().toISOString().slice(0, 10),
+            applicantName: applicant.name,
+            roleName: role ? role.name : hrRoleSelectedId.value,
+            managedOrgs: hrRoleSelectedOrgNames.value.join('、'),
+            validityDays: -1, // 长期
+            status: 'approved', // demo：直接通过，无审批
+            bpmProcessId: null,
+            approvalNodes: []
+        };
+        permissionApplications.value.unshift(newApp);
+        permissionApplyStep.value = 0;
+        permissionApplyType.value = '';
+    };
+
+    // 重置流程
+    const resetHrRoleApply = () => {
+        hrRoleApplyStep.value = 1;
+        hrRoleApplyMode.value = 'self';
+        hrRoleProxyTargetId.value = null;
+        hrRoleProxyTargetName.value = '';
+        hrRoleProxyTargetDept.value = '';
+        hrRoleProxySearchQuery.value = '';
+        hrRoleSelectedId.value = null;
+        hrRoleSelectedOrgIds.value = [];
+        hrOrgSearchQuery.value = '';
+        hrOrgSearchResults.value = [];
+        hrOrgIncludeChildren.value = false;
+        hrLookupPersonQuery.value = '';
+        hrLookupPersonSelected.value = null;
+        hrLookupPersonOrgs.value = [];
+        hrRoleApplyReason.value = '';
+    };
+
+    const startHrRoleApply = () => {
+        resetHrRoleApply();
+        showHrRoleApplyFlow.value = true;
+    };
+
     // ========== 创建 Vue App ==========
 
     const app = createApp({
@@ -2187,7 +2467,23 @@ const viewingAppDetail = ref(null);
                 // 管理员设置
                 permissionAdmins, showAddAdminModal,
                 newAdminSearchQuery, newAdminSearchResults, newAdminSelected, newAdminDomains,
-                searchNewAdmin, selectNewAdmin, addPermissionAdmin
+                searchNewAdmin, selectNewAdmin, addPermissionAdmin,
+                // HR 系统角色申请
+                showHrRoleApplyFlow, hrRoleApplyStep,
+                hrRoleApplyMode, hrRoleProxyTargetId, hrRoleProxyTargetName, hrRoleProxyTargetDept,
+                hrRoleProxySearchQuery, hrRoleProxySearchResults,
+                currentUserInfo, hrRoleSelectedId, hrRoleSelectedOrgIds,
+                hrOrgTreeExpandedIds, hrOrgTree, hrPositionRoles,
+                isBpRole, hrRoleManagedEmployees, hrRoleApplicantDeptName, hrRoleSelectedOrgNames,
+                hrRoleApplyFormValid,
+                searchHrRoleProxyUsers, selectHrRoleProxyTarget, clearHrRoleProxyTarget, hideHrRoleProxyResults,
+                toggleHrOrgExpand, toggleHrOrgSelect,
+                submitHrRoleApplication, resetHrRoleApply, startHrRoleApply,
+                hrOrgSearchQuery, hrOrgSearchResults, hrOrgIncludeChildren, hrOrgSearchDropdownVisible,
+                searchHrOrgs, selectHrOrgFromSearch, removeHrOrgSelected, hideHrOrgSearchDropdown,
+                hrLookupPersonQuery, hrLookupPersonResults, hrLookupPersonSelected, hrLookupPersonOrgs, hrLookupDropdownVisible, hrLookupModalVisible,
+                searchLookupPerson, selectLookupPerson, hideLookupDropdown, applyLookupOrgs,
+                hrRoleApplyReason, hrEmpPreviewVisible
             };
         }
     });
@@ -2248,7 +2544,23 @@ const viewingAppDetail = ref(null);
         // 管理员设置
         permissionAdmins, showAddAdminModal,
         newAdminSearchQuery, newAdminSearchResults, newAdminSelected, newAdminDomains,
-        searchNewAdmin, selectNewAdmin, addPermissionAdmin
+        searchNewAdmin, selectNewAdmin, addPermissionAdmin,
+        // HR 系统角色申请
+        showHrRoleApplyFlow, hrRoleApplyStep,
+        hrRoleApplyMode, hrRoleProxyTargetId, hrRoleProxyTargetName, hrRoleProxyTargetDept,
+        hrRoleProxySearchQuery, hrRoleProxySearchResults,
+        currentUserInfo, hrRoleSelectedId, hrRoleSelectedOrgIds,
+        hrOrgTreeExpandedIds, hrOrgTree, hrPositionRoles,
+        isBpRole, hrRoleManagedEmployees, hrRoleApplicantDeptName, hrRoleSelectedOrgNames,
+        hrRoleApplyFormValid,
+        searchHrRoleProxyUsers, selectHrRoleProxyTarget, clearHrRoleProxyTarget, hideHrRoleProxyResults,
+        toggleHrOrgExpand, toggleHrOrgSelect,
+        submitHrRoleApplication, resetHrRoleApply, startHrRoleApply,
+        hrOrgSearchQuery, hrOrgSearchResults, hrOrgIncludeChildren, hrOrgSearchDropdownVisible,
+        searchHrOrgs, selectHrOrgFromSearch, removeHrOrgSelected, hideHrOrgSearchDropdown,
+        hrLookupPersonQuery, hrLookupPersonResults, hrLookupPersonSelected, hrLookupPersonOrgs, hrLookupDropdownVisible, hrLookupModalVisible,
+        searchLookupPerson, selectLookupPerson, hideLookupDropdown, applyLookupOrgs,
+        hrRoleApplyReason, hrEmpPreviewVisible
     });
 
     // 注册权限中心组件
