@@ -68,6 +68,62 @@
                                 </button>
                             </div>
                         </div>
+                        <!-- 分类：下拉筛选 + 模糊搜索（单选字段分类） -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-2">分类</label>
+                            <div class="relative" @click.stop>
+                                <button type="button" @click.stop="toggleClassificationDropdown"
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-left bg-white hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent flex items-center justify-between gap-2">
+                                    <span v-if="selectedClassificationLabel" class="text-slate-800 truncate">{{ selectedClassificationLabel }}</span>
+                                    <span v-else class="text-slate-400">请选择字段分类...</span>
+                                    <div class="flex items-center gap-1 flex-shrink-0">
+                                        <button v-if="selectedClassificationLabel" type="button" @click.stop="clearClassification"
+                                            class="p-0.5 text-slate-400 hover:text-slate-600 rounded" title="清除">
+                                            <i class="ph ph-x text-xs"></i>
+                                        </button>
+                                        <i :class="['ph ph-caret-down text-xs text-slate-400 transition-transform', showClassificationDropdown ? 'rotate-180' : '']"></i>
+                                    </div>
+                                </button>
+                                <div v-if="showClassificationDropdown" @click.stop
+                                    class="absolute left-0 right-0 top-full mt-1 z-50 max-h-80 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden flex flex-col">
+                                    <div class="p-2 border-b border-slate-100">
+                                        <div class="relative">
+                                            <i class="ph ph-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                            <input ref="classificationSearchInput" v-model="classificationSearchQuery" type="text"
+                                                class="w-full pl-7 pr-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                placeholder="模糊搜索：领域 / 字段分类名称..."
+                                                @keydown.esc.stop="showClassificationDropdown = false" />
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 overflow-y-auto py-1">
+                                        <div v-if="!classificationOptions.length" class="px-3 py-6 text-center text-xs text-slate-400">
+                                            暂无可选分类，请先在二级业务域「分类管理」中配置
+                                        </div>
+                                        <div v-else-if="!filteredClassificationGroups.length" class="px-3 py-6 text-center text-xs text-slate-400">
+                                            无匹配结果
+                                        </div>
+                                        <template v-else>
+                                            <div v-for="group in filteredClassificationGroups" :key="group.domainId" class="mb-1">
+                                                <div class="px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider sticky top-0 bg-white/95">
+                                                    {{ group.domainName }}
+                                                </div>
+                                                <button v-for="opt in group.options" :key="opt.id" type="button"
+                                                    @click.stop="selectClassification(opt)"
+                                                    :class="[
+                                                        'w-full px-3 py-1.5 text-sm text-left flex items-center gap-2 transition-colors',
+                                                        isClassificationSelected(opt)
+                                                            ? 'bg-indigo-50 text-indigo-700'
+                                                            : 'hover:bg-slate-50 text-slate-700'
+                                                    ]">
+                                                    <i :class="['ph text-xs flex-shrink-0', isClassificationSelected(opt) ? 'ph-check-circle text-indigo-600' : 'ph-circle text-slate-300']"></i>
+                                                    <span class="flex-1 truncate">{{ opt.name }}</span>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div>
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" v-model="editingForm.is_encrypted" class="rounded border-slate-300 text-rose-600 focus:ring-rose-500" />

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div id="app">
+  <test-comp></test-comp>
+</div>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script>
+const { createApp, ref, inject } = Vue;
+const count = ref(0);
+const increment = () => { count.value++; console.log('increment called, count=', count.value); };
+
+const app = createApp({
+  setup() { return { count }; }
+});
+
+app.provide('ctx', { count, increment });
+
+app.component('TestComp', {
+  setup() {
+    const ctx = inject('ctx');
+    console.log('inject result:', ctx);
+    return ctx;
+  },
+  template: '<div><p>count: {{count}}</p><button @click="increment()">click me</button></div>'
+});
+
+app.mount('#app');
+</script>
+</body>
+</html>

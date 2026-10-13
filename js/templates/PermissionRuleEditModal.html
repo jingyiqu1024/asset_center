@@ -241,6 +241,7 @@
                                     class="col-span-2 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                                     <option value="literal">字面值</option>
                                     <option value="env_var">环境变量</option>
+                                    <option value="udf">UDF</option>
                                 </select>
                                 <select v-if="filter.valueType === 'env_var'" v-model="filter.value"
                                     class="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm font-mono bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
@@ -251,6 +252,13 @@
                                         visiting_user.as_hrbp.department_ids</option>
                                     <option value="visiting_user.as_teamleader.department_ids">
                                         visiting_user.as_teamleader.department_ids</option>
+                                </select>
+                                <select v-else-if="filter.valueType === 'udf'" v-model="filter.value"
+                                    class="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm font-mono bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="">选择 UDF</option>
+                                    <option value="mask_phone">mask_phone (手机号脱敏)</option>
+                                    <option value="user_dept">user_dept (获取用户部门)</option>
+                                    <option value="calc_age">calc_age (计算年龄)</option>
                                 </select>
                                 <input v-else v-model="filter.value" type="text"
                                     class="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -287,6 +295,82 @@
                     <p class="mb-2">引用全局规则：<code
                             class="font-mono text-indigo-600">{{ editingRule.globalRuleRef || '未选择' }}</code></p>
                     <p class="text-xs text-slate-500">全局规则的具体配置由规则定义决定</p>
+                </div>
+            </div>
+
+            <!-- 授权有效期 -->
+            <div class="border-t border-slate-200 pt-4">
+                <label class="block text-sm font-medium text-slate-700 mb-2">授权有效期 <span
+                        class="text-red-500">*</span></label>
+                <div class="space-y-3">
+                    <!-- 快捷选择 -->
+                    <div class="flex items-center gap-2">
+                        <button @click="editingRule.validityType = 'permanent'" type="button"
+                            :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                     editingRule.validityType === 'permanent' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                            长期有效
+                        </button>
+                        <button @click="editingRule.validityType = '30d'" type="button"
+                            :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                     editingRule.validityType === '30d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                            30天
+                        </button>
+                        <button @click="editingRule.validityType = '90d'" type="button"
+                            :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                     editingRule.validityType === '90d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                            90天
+                        </button>
+                        <button @click="editingRule.validityType = '180d'" type="button"
+                            :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                     editingRule.validityType === '180d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                            180天
+                        </button>
+                        <button @click="editingRule.validityType = 'custom'" type="button"
+                            :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                     editingRule.validityType === 'custom' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                            自定义时间
+                        </button>
+                    </div>
+
+                    <!-- 长期有效提示 -->
+                    <div v-if="editingRule.validityType === 'permanent'"
+                        class="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100/50 text-xs">
+                        <i class="ph ph-infinity text-sm"></i>
+                        <span>授权长期有效，无过期时间</span>
+                    </div>
+
+                    <!-- 快捷选择计算结果 -->
+                    <div v-if="editingRule.validityType === '30d' || editingRule.validityType === '90d' || editingRule.validityType === '180d'"
+                        class="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100/50 text-xs">
+                        <i class="ph ph-calendar text-sm"></i>
+                        <span>有效期至 {{ getComputedExpiryDate(editingRule.validityType) }}</span>
+                    </div>
+
+                    <!-- 自定义时间范围选择 -->
+                    <div v-if="editingRule.validityType === 'custom'" class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1">
+                                <label class="block text-xs text-slate-500 mb-1">开始时间</label>
+                                <input v-model="editingRule.validityStartDate" type="date"
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs text-slate-500 mb-1">截止时间</label>
+                                <input v-model="editingRule.validityEndDate" type="date"
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                            </div>
+                        </div>
+                        <div v-if="editingRule.validityStartDate && editingRule.validityEndDate && new Date(editingRule.validityEndDate) <= new Date(editingRule.validityStartDate)"
+                            class="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg border border-red-100/50 text-xs">
+                            <i class="ph ph-warning text-sm"></i>
+                            <span>截止时间必须大于开始时间</span>
+                        </div>
+                        <div v-if="editingRule.validityStartDate && editingRule.validityEndDate && new Date(editingRule.validityEndDate) > new Date(editingRule.validityStartDate)"
+                            class="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100/50 text-xs">
+                            <i class="ph ph-calendar text-sm"></i>
+                            <span>有效期：{{ editingRule.validityStartDate }} 至 {{ editingRule.validityEndDate }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

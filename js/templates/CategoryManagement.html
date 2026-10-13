@@ -1,0 +1,202 @@
+<div class="h-full flex flex-col bg-white">
+    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <i class="ph ph-tree-structure text-2xl text-indigo-600"></i>
+                <div class="min-w-0">
+                    <h2 class="text-lg font-semibold text-slate-900">分类管理</h2>
+                    <p class="text-sm text-slate-500 truncate">{{ node?.name || '' }} · 领域分类 → 字段分类</p>
+                </div>
+            </div>
+            <button @click="openCreateDomain"
+                class="flex-shrink-0 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors flex items-center gap-1.5">
+                <i class="ph ph-plus text-sm"></i>
+                新增领域分类
+            </button>
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-6 py-4"
+        @dragover.prevent="onRootDragOver"
+        @drop.prevent="onRootDrop">
+        <div v-if="!categoryTree.length" class="h-full flex items-center justify-center text-slate-400">
+            <div class="text-center px-6">
+                <i class="ph ph-tree-structure text-5xl mb-3"></i>
+                <p class="text-sm mb-1">暂无分类</p>
+                <p class="text-xs">点击右上角「新增领域分类」开始配置</p>
+            </div>
+        </div>
+
+        <div v-else class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+            <!-- 表头 -->
+            <div class="grid grid-cols-[40px_1fr_200px_160px] gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500">
+                <div></div>
+                <div>名称</div>
+                <div>负责人</div>
+                <div class="text-right pr-1">操作</div>
+            </div>
+
+            <div v-for="(domain, dIdx) in categoryTree" :key="domain.id"
+                @dragover.prevent="onDomainDragOver($event, domain, dIdx)"
+                @drop.prevent="onDomainDrop($event, domain, dIdx)">
+                <!-- 领域行 -->
+                <div
+                    draggable="true"
+                    @dragstart="onDragStart($event, { type: 'domain', id: domain.id })"
+                    @dragend="onDragEnd"
+                    :class="[
+                        'grid grid-cols-[40px_1fr_200px_160px] gap-2 px-4 py-3 items-center border-b border-slate-100 group',
+                        dropTargetKey === 'domain:' + domain.id
+                            ? 'bg-indigo-50/80 border-dashed border-indigo-200'
+                            : 'hover:bg-slate-50/80'
+                    ]">
+                    <div class="flex items-center gap-1">
+                        <i class="ph ph-dots-six-vertical text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing"
+                            title="拖拽排序"></i>
+                        <button @click="toggleDomain(domain.id)"
+                            class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-200/80 text-slate-500">
+                            <i :class="['ph text-xs', domain.isOpen ? 'ph-caret-down' : 'ph-caret-right']"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2 min-w-0">
+                        <i class="ph ph-folders text-indigo-600 flex-shrink-0"></i>
+                        <span class="text-sm font-medium text-slate-900 truncate">{{ domain.name }}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-600 flex-shrink-0">领域</span>
+                        <span class="text-xs text-slate-400 flex-shrink-0">{{ domain.children?.length || 0 }}</span>
+                    </div>
+                    <div class="text-sm text-slate-600 truncate">
+                        {{ domain.owner?.name || '—' }}
+                        <span v-if="domain.owner?.userName" class="text-xs text-slate-400 font-mono ml-1">{{ domain.owner.userName }}</span>
+                    </div>
+                    <div class="flex items-center justify-end gap-1">
+                        <button @click="openCreateField(domain)"
+                            class="w-7 h-7 flex items-center justify-center rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            title="新增字段分类">
+                            <i class="ph ph-plus text-base"></i>
+                        </button>
+                        <button @click="openEdit(domain)"
+                            class="px-2.5 py-1 text-xs text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors">
+                            编辑
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 字段行 -->
+                <template v-if="domain.isOpen">
+                    <div v-for="(field, fIdx) in domain.children" :key="field.id"
+                        draggable="true"
+                        @dragstart="onDragStart($event, { type: 'field', id: field.id, parentId: domain.id })"
+                        @dragend="onDragEnd"
+                        @dragover.prevent="onFieldDragOver($event, domain, field, fIdx)"
+                        @drop.prevent="onFieldDrop($event, domain, field, fIdx)"
+                        :class="[
+                            'grid grid-cols-[40px_1fr_200px_160px] gap-2 px-4 py-2.5 items-center border-b border-slate-50 group',
+                            dropTargetKey === 'field:' + field.id
+                                ? 'bg-amber-50 border-dashed border-amber-200'
+                                : 'hover:bg-slate-50/60'
+                        ]">
+                        <div class="flex items-center justify-end pr-1">
+                            <i class="ph ph-dots-six-vertical text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing"
+                                title="拖拽排序 / 移到其他领域"></i>
+                        </div>
+                        <div class="flex items-center gap-2 min-w-0 pl-8">
+                            <i class="ph ph-tag text-amber-500 flex-shrink-0"></i>
+                            <span class="text-sm text-slate-800 truncate">{{ field.name }}</span>
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 flex-shrink-0">字段</span>
+                        </div>
+                        <div class="text-sm text-slate-600 truncate">
+                            {{ field.owner?.name || '—' }}
+                            <span v-if="field.owner?.userName" class="text-xs text-slate-400 font-mono ml-1">{{ field.owner.userName }}</span>
+                        </div>
+                        <div class="flex items-center justify-end">
+                            <button @click="openEdit(field)"
+                                class="px-2.5 py-1 text-xs text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors">
+                                编辑
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="!domain.children?.length"
+                        class="px-4 py-2.5 pl-16 text-xs text-slate-400 italic border-b border-slate-50">
+                        暂无字段分类，点击领域行「+」新增
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建 / 编辑弹窗（共用） -->
+    <div v-if="showModal" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" @click.self="closeModal">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">{{ modalTitle }}</h3>
+                    <p v-if="modalMode === 'create-field'" class="text-xs text-slate-500 mt-1">
+                        所属领域：{{ createParentDomain?.name }}
+                    </p>
+                    <p v-else-if="modalMode === 'edit-field'" class="text-xs text-slate-500 mt-1">
+                        所属领域：{{ parentDomainName(editingNode) }}
+                    </p>
+                </div>
+                <span v-if="modalKindLabel" :class="[
+                    'px-2 py-0.5 rounded text-xs font-medium flex-shrink-0',
+                    isDomainModal ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'
+                ]">{{ modalKindLabel }}</span>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-slate-700 mb-1.5 block">名称 <span class="text-red-500">*</span></label>
+                    <input v-model="modalForm.name" type="text"
+                        class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        :placeholder="isDomainModal ? '如：OD领域' : '如：绩效信息'">
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700 mb-1.5 block">
+                        {{ isDomainModal ? '领域负责人' : '字段负责人' }}
+                        <span class="text-xs text-slate-400 font-normal ml-1">选填</span>
+                    </label>
+                    <input v-model="ownerSearchQuery" @input="searchOwners" type="text"
+                        placeholder="输入姓名或工号搜索"
+                        class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div v-if="ownerSearchResults.length" class="mt-2 border border-slate-200 rounded-lg overflow-hidden max-h-[120px] overflow-y-auto">
+                        <button v-for="u in ownerSearchResults" :key="u.id" type="button" @click="selectOwner(u)"
+                            :class="[
+                                'w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 transition-colors flex items-center gap-2',
+                                modalForm.owner && modalForm.owner.id === u.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                            ]">
+                            <span class="font-medium">{{ u.name }}</span>
+                            <span class="text-xs text-slate-500 font-mono">{{ u.userName }}</span>
+                            <span class="text-xs text-slate-400">{{ u.department }}</span>
+                        </button>
+                    </div>
+                    <div v-if="modalForm.owner" class="mt-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200 flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-indigo-700">
+                                {{ modalForm.owner.name }}
+                                <span class="font-mono text-xs text-indigo-500 ml-1">{{ modalForm.owner.userName }}</span>
+                            </div>
+                            <div class="text-xs text-indigo-400 mt-0.5">{{ modalForm.owner.department }}</div>
+                        </div>
+                        <button type="button" @click="clearOwner" class="text-xs text-indigo-600 hover:text-indigo-800">清除</button>
+                    </div>
+                </div>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-200 flex items-center gap-3">
+                <button v-if="modalMode.startsWith('edit')" @click="confirmDelete"
+                    class="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors mr-auto">
+                    删除
+                </button>
+                <div v-else class="flex-1"></div>
+                <button @click="closeModal"
+                    class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50">取消</button>
+                <button @click="confirmModal"
+                    :disabled="!canSubmitModal"
+                    :class="[
+                        'px-4 py-2 rounded-lg text-sm font-medium',
+                        canSubmitModal ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    ]">
+                    {{ modalMode.startsWith('edit') ? '保存' : '确认新增' }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

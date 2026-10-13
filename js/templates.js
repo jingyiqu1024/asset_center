@@ -1,7 +1,7 @@
 // Template strings for components
 window.AppTemplates = {
     TreeItem: `
-            <div class="select-none">
+            <div class="select-none" v-show="shouldShow">
                 <div 
                     @click="handleClick"
                     :class="['flex items-center gap-2 px-3 py-1.5 my-0.5 rounded-md cursor-pointer transition-colors text-sm group',
@@ -19,7 +19,7 @@ window.AppTemplates = {
                     </span>
                     <span v-else class="w-4"></span>
                     <i :class="['ph text-lg', nodeIcon, isSelected ? 'text-indigo-700' : iconColor]"></i>
-                    <span class="truncate flex-1">{{ node.name }}</span>
+                    <span class="truncate flex-1">{{ node.chineseName ? node.name + '(' + node.chineseName + ')' : node.name }}</span>
                     
                     <!-- 重命名按钮（仅目录且非根目录） -->
                     <button 
@@ -32,13 +32,15 @@ window.AppTemplates = {
                         <i class="ph ph-pencil-simple text-sm"></i>
                     </button>
                 </div>
-                <div v-if="isOpen && node.children && node.children.length > 0">
+                <div v-if="isOpen && node.children && filteredChildren.length > 0">
                     <tree-item 
-                        v-for="child in node.children" 
+                        v-for="child in filteredChildren" 
                         :key="child.id" 
                         :node="child"
                         :depth="depth + 1"
                         :selected-id="selectedId"
+                        :type-filter="typeFilter"
+                        :search-query="searchQuery"
                         @select="$emit('select', $event)"
                         @toggle="$emit('toggle', $event)"
                         @rename="$emit('rename', $event)"
@@ -136,6 +138,48 @@ window.AppTemplates = {
                                 <button @click="$emit('navigateToDict', getLinkedDict(editingForm.governed_tag))" class="text-cyan-600 hover:text-cyan-700 underline font-medium">
                                     {{ getLinkedDict(editingForm.governed_tag) }}
                                 </button>
+                            </div>
+                        </div>
+                        <!-- 分类选择（多选） -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-2">分类</label>
+                            <!-- 已选分类标签 -->
+                            <div v-if="editingForm.classification && editingForm.classification.length > 0" class="flex flex-wrap gap-1 mb-2">
+                                <span v-for="cls in editingForm.classification" :key="cls" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    {{ cls }}
+                                    <button @click.stop="removeClassification(cls)" class="text-indigo-400 hover:text-red-500 transition-colors">
+                                        <i class="ph ph-x text-[10px]"></i>
+                                    </button>
+                                </span>
+                                <button @click.stop="clearAllClassifications" class="text-xs text-slate-400 hover:text-slate-600 underline">清空</button>
+                            </div>
+                            <div class="relative" @click.stop>
+                                <button @click.stop="showClassificationDropdown = !showClassificationDropdown" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-left bg-white hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent flex items-center justify-between">
+                                    <span class="text-slate-400">点击选择分类...</span>
+                                    <i :class="['ph ph-caret-down text-xs text-slate-400 transition-transform', showClassificationDropdown ? 'rotate-180' : '']"></i>
+                                </button>
+                                <div v-if="showClassificationDropdown" @click.stop class="absolute left-0 right-0 top-full mt-1 z-50 max-h-80 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden flex flex-col">
+                                    <div class="p-2 border-b border-slate-100">
+                                        <input v-model="classificationSearchQuery" type="text" class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs" placeholder="搜索分类..." />
+                                    </div>
+                                    <div class="p-2 flex-1 overflow-y-auto space-y-0.5">
+                                        <!-- 分类列表 -->
+                                        <div v-for="node in classificationTree" :key="node.id" @click.stop="toggleClassification(node.name)" :class="['px-2 py-1.5 text-sm rounded cursor-pointer flex items-center gap-2', isClassificationSelected(node.name) ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-indigo-50 text-slate-700']">
+                                            <input type="checkbox" :checked="isClassificationSelected(node.name)" @click.stop class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                            <span class="flex-1">{{ node.name }}</span>
+                                        </div>
+                                        <!-- 新建分类 -->
+                                        <div v-if="!showNewClassificationInput" @click.stop="startNewClassification" class="px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-indigo-50 flex items-center gap-2 text-indigo-600 border-t border-slate-100 mt-1 pt-2">
+                                            <i class="ph ph-plus text-xs flex-shrink-0"></i>
+                                            <span class="flex-1">新建分类</span>
+                                        </div>
+                                        <div v-if="showNewClassificationInput" class="px-2 py-1.5 flex items-center gap-2">
+                                            <input v-model="newClassificationName" type="text" class="flex-1 px-2 py-1 border border-indigo-300 rounded text-xs focus:ring-2 focus:ring-indigo-500" placeholder="输入分类名称..." @keyup.enter="confirmNewClassification" @keyup.esc="cancelNewClassification" />
+                                            <button @click.stop="confirmNewClassification" class="p-1 text-indigo-600 hover:text-indigo-800"><i class="ph ph-check text-sm"></i></button>
+                                            <button @click.stop="cancelNewClassification" class="p-1 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-sm"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -252,7 +296,8 @@ window.AppTemplates = {
             </div>
     `,
     PermissionRuleEditModal: `
-            <div v-if="visible" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" @click.self="$emit('close')">
+            <div>
+            <div v-if="visible" v-show="!tempHideMainModal" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" @click.self="$emit('close')">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
                     <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
                         <h3 class="text-base font-semibold text-slate-900">
@@ -267,25 +312,84 @@ window.AppTemplates = {
                             <input v-model="editingRule.name" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="例如：部门数据隔离" />
                         </div>
 
+                        <!-- ═══════════════════════════════════════════ -->
+                        <!-- 授权对象 -->
+                        <!-- ═══════════════════════════════════════════ -->
+                        <div v-if="!isGlobal">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">授权对象</label>
+                            <div class="relative" @click.stop>
+                                <input v-model="editingRule.targetAudience.value"
+                                    @focus="$emit('update:showAudienceDropdown', true)"
+                                    @input="$emit('update:showAudienceDropdown', true)"
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="搜索用户、人群组或部门..." />
+                                <i class="ph ph-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                <div v-if="showAudienceDropdown" @click.stop
+                                    class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                                    <div class="p-2 space-y-1">
+                                        <div @click="$emit('selectAudience', 'individual', '张三 (E12345)')"
+                                            class="px-3 py-2 hover:bg-slate-50 rounded cursor-pointer flex items-center gap-2">
+                                            <i class="ph ph-user text-slate-500"></i>
+                                            <div class="flex-1"><div class="text-sm font-medium">张三</div><div class="text-xs text-slate-500">工号: E12345</div></div>
+                                        </div>
+                                        <div @click="$emit('selectAudience', 'role', 'HRBP')"
+                                            class="px-3 py-2 hover:bg-slate-50 rounded cursor-pointer flex items-center gap-2">
+                                            <i class="ph ph-users text-indigo-500"></i>
+                                            <div class="flex-1"><div class="text-sm font-medium">HRBP</div><div class="text-xs text-slate-500">人群组 · 35人</div></div>
+                                        </div>
+                                        <div @click="$emit('selectAudience', 'role', '管理者')"
+                                            class="px-3 py-2 hover:bg-slate-50 rounded cursor-pointer flex items-center gap-2">
+                                            <i class="ph ph-users text-indigo-500"></i>
+                                            <div class="flex-1"><div class="text-sm font-medium">管理者</div><div class="text-xs text-slate-500">人群组 · 82人</div></div>
+                                        </div>
+                                        <div @click="$emit('selectAudience', 'department', '研发部')"
+                                            class="px-3 py-2 hover:bg-slate-50 rounded cursor-pointer flex items-center gap-2">
+                                            <i class="ph ph-buildings text-amber-500"></i>
+                                            <div class="flex-1"><div class="text-sm font-medium">研发部</div><div class="text-xs text-slate-500">部门 · 120人</div></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- ═══════════════════════════════════════════ -->
                         <!-- 列权限 (Column Permissions) -->
                         <!-- ═══════════════════════════════════════════ -->
                         <div v-if="!isGlobal" class="space-y-4">
-                            <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
-                                <div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
-                                    <i class="ph ph-columns text-blue-600 text-sm"></i>
+                            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                                        <i class="ph ph-columns text-blue-600 text-sm"></i>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-800">列权限</h4>
+                                    <span class="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">字段可见范围</span>
                                 </div>
-                                <h4 class="text-sm font-bold text-slate-800">列权限</h4>
-                                <span class="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">字段可见范围</span>
+                                <!-- 列权限规则来源选择 -->
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[10px] text-slate-400">规则来源</span>
+                                    <div class="flex gap-1.5">
+                                        <button @click="switchColumnRuleSource('custom')" 
+                                            :class="['px-2.5 py-1 border-2 rounded text-xs font-medium transition-all flex items-center justify-center gap-1', editingRule.columnRuleSource === 'custom' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-300 text-slate-500']">
+                                            <i class="ph ph-file-text text-xs"></i>
+                                            <span>定义表专属规则</span>
+                                        </button>
+                                        <button @click="switchColumnRuleSource('global_reference')" 
+                                            :class="['px-2.5 py-1 border-2 rounded text-xs font-medium transition-all flex items-center justify-center gap-1', editingRule.columnRuleSource === 'global_reference' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-300 text-slate-500']">
+                                            <i class="ph ph-link text-xs"></i>
+                                            <span>引用访问控制规则</span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- 字段范围 -->
-                            <div>
+                            <!-- ────────────────────────────────────── -->
+                            <!-- 列权限：定义表专属规则 → 字段范围 -->
+                            <!-- ────────────────────────────────────── -->
+                            <div v-if="editingRule.columnRuleSource === 'custom' || !editingRule.columnRuleSource">
                                 <label class="block text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">字段范围</label>
                                 <div class="space-y-3">
                                     <div class="grid grid-cols-3 gap-3">
-                                        <button @click="editingRule.columnVisibility.mode = 'all'" 
+                                        <button @click="editingRule.columnVisibility.mode = 'all'"
                                             :class="['px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2', editingRule.columnVisibility.mode === 'all' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 hover:border-green-300 text-slate-700']">
                                             <i class="ph ph-check-circle"></i> 全部字段
                                         </button>
@@ -296,6 +400,16 @@ window.AppTemplates = {
                                         <button @click="editingRule.columnVisibility.mode = 'exclude'" 
                                             :class="['px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2', editingRule.columnVisibility.mode === 'exclude' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-200 hover:border-red-300 text-slate-700']">
                                             <i class="ph ph-eye-slash"></i> 排除字段
+                                        </button>
+                                    </div>
+                                    <!-- 字段搜索框（仅授权/排除模式） -->
+                                    <div v-if="editingRule.columnVisibility.mode !== 'all'" class="relative mb-2">
+                                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                        <input v-model="columnSearchQuery" type="text"
+                                            placeholder="搜索字段名或描述..."
+                                            class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                                        <button v-if="columnSearchQuery" @click="columnSearchQuery = ''" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            <i class="ph ph-x text-xs"></i>
                                         </button>
                                     </div>
                                     <!-- 字段列表 -->
@@ -312,7 +426,8 @@ window.AppTemplates = {
                                                     </tr>
                                                 </thead>
                                                 <tbody class="divide-y divide-slate-200">
-                                                    <tr v-for="field in schemaFields" :key="field.name" 
+                                                    <tr v-for="field in schemaFields" :key="field.name"
+                                                        v-show="editingRule.columnVisibility.mode === 'all' || !columnSearchQuery.trim() || field.name.toLowerCase().includes(columnSearchQuery.trim().toLowerCase()) || (field.description && field.description.toLowerCase().includes(columnSearchQuery.trim().toLowerCase()))"
                                                         class="hover:bg-slate-50 transition-colors"
                                                         :class="{'bg-indigo-50/40': (editingRule.columnVisibility.mode === 'all') || (editingRule.columnVisibility.fields.includes(field.name))}">
                                                         <td class="px-4 py-2.5 text-center">
@@ -334,9 +449,17 @@ window.AppTemplates = {
                                                 </tbody>
                                             </table>
                                         </div>
-                                        <div v-if="editingRule.columnVisibility.mode !== 'all'" class="px-4 py-2 bg-slate-50 border-t border-slate-200">
+                                        <div v-if="editingRule.columnVisibility.mode !== 'all'" class="px-4 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
                                             <p class="text-[11px] text-slate-500">
-                                                当前已选择 <span class="text-indigo-600 font-bold">{{ editingRule.columnVisibility.fields.length }}</span> 个字段
+                                                已选择 <span class="text-indigo-600 font-bold">{{ editingRule.columnVisibility.fields.length }}</span> 个字段
+                                            </p>
+                                            <button v-if="editingRule.columnVisibility.fields.length > 0" @click="editingRule.columnVisibility.fields = []" class="text-xs text-slate-400 hover:text-red-500 transition-colors">
+                                                <i class="ph ph-x-circle text-xs mr-0.5"></i>清空选择
+                                            </button>
+                                        </div>
+                                        <div v-if="editingRule.columnVisibility.mode === 'all'" class="px-4 py-2 bg-slate-50 border-t border-slate-200">
+                                            <p class="text-[11px] text-slate-500">
+                                                已选择全部字段
                                             </p>
                                         </div>
                                     </div>
@@ -345,40 +468,257 @@ window.AppTemplates = {
                         </div>
 
                         <!-- ═══════════════════════════════════════════ -->
-                        <!-- 行权限 (Row Permissions) -->
+                        <!-- 列权限：引用访问控制规则（仅选择规则） -->
                         <!-- ═══════════════════════════════════════════ -->
-                        <div class="space-y-4">
-                            <div v-if="!isGlobal" class="flex items-center gap-2 pb-2 border-b border-slate-100">
+                        <template v-if="!isGlobal && editingRule.columnRuleSource === 'global_reference'">
+                            <!-- 列权限规则选择（支持多选） -->
+                            <div class="space-y-4">
+                                <!-- 列权限规则多选 -->
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">选择列权限规则</label>
+                                    <div class="relative mb-3">
+                                        <input v-model="editingRule.refRuleSearchQuery" type="text"
+                                            class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            placeholder="搜索列权限规则..." />
+                                        <i class="ph ph-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <div v-for="rule in filteredRefRules" :key="rule.id"
+                                            @click="toggleRefRule(rule)"
+                                            :class="['px-3 py-2 border rounded-lg transition-all group cursor-pointer flex items-center justify-between',
+                                                editingRule.selectedRefRules && editingRule.selectedRefRules.some(r => r.id === rule.id) ? 'border-indigo-300 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-300']">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <i :class="['ph ph-check-circle text-sm flex-shrink-0', editingRule.selectedRefRules && editingRule.selectedRefRules.some(r => r.id === rule.id) ? 'text-indigo-600' : 'text-slate-300']"></i>
+                                                <i class="ph ph-shield-check text-indigo-500 text-xs flex-shrink-0"></i>
+                                                <span class="text-sm font-medium text-slate-800 group-hover:text-indigo-600 truncate">{{ rule.name }}</span>
+                                                <span class="text-[11px] text-slate-400 flex-shrink-0">{{ rule.description ? rule.description.substring(0, 30) + '...' : '' }}</span>
+                                            </div>
+                                            <span v-if="editingRule.selectedRefRules && editingRule.selectedRefRules.some(r => r.id === rule.id)" class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] bg-green-50 text-green-700 flex-shrink-0">
+                                                <i class="ph ph-check text-[10px] mr-0.5"></i>已选
+                                            </span>
+                                        </div>
+                                        <div v-if="filteredRefRules.length === 0" class="p-6 text-center text-slate-400">
+                                            <i class="ph ph-shield-check text-2xl block mb-2"></i>
+                                            <p class="text-sm">暂无匹配的列权限规则</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- OR 关系提示 -->
+                                <div v-if="editingRule.selectedRefRules && editingRule.selectedRefRules.length > 1" class="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+                                    <i class="ph ph-info text-amber-600 text-sm"></i>
+                                    <span class="text-xs text-amber-800">多条规则之间为<span class="font-bold">「或」(OR)</span>关系，满足任意一条即可获得列权限</span>
+                                </div>
+
+                                <!-- 已选规则的表与字段展示 -->
+                                <div v-if="editingRule.selectedRefRules && editingRule.selectedRefRules.length > 0" class="space-y-2">
+                                    <div v-for="(selectedRefRule, ruleIdx) in editingRule.selectedRefRules" :key="selectedRefRule.id"
+                                        class="border border-slate-200 rounded-lg overflow-hidden">
+                                        <!-- 规则头部（可点击展开/收起） -->
+                                        <div @click="toggleRefRuleExpand(ruleIdx)" class="px-3 py-2.5 bg-indigo-50/50 border-b border-slate-200 flex items-center justify-between cursor-pointer hover:bg-indigo-50 transition-colors">
+                                            <div class="flex items-center gap-2">
+                                                <i :class="['ph ph-caret-right text-sm text-slate-400 transition-transform duration-200', expandedRefRuleIndex === ruleIdx ? 'rotate-90' : '']"></i>
+                                                <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-bold flex items-center justify-center">{{ ruleIdx + 1 }}</span>
+                                                <i class="ph ph-shield-check text-indigo-600 text-xs"></i>
+                                                <span class="text-sm font-medium text-indigo-800">{{ selectedRefRule.name }}</span>
+                                                <span v-if="selectedRefRule.tableFields" class="text-[11px] text-slate-400">{{ Object.keys(selectedRefRule.tableFields).filter(k => selectedRefRule.tableFields[k].length > 0).length }}个表 {{ Object.values(selectedRefRule.tableFields).reduce((a, b) => a + b.length, 0) }}个字段</span>
+                                            </div>
+                                            <button @click.stop="removeRefRule(selectedRefRule)" class="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+                                                <i class="ph ph-x-circle"></i> 移除
+                                            </button>
+                                        </div>
+                                        <!-- 展开内容：按权限点分组的表和字段 -->
+                                        <div v-if="expandedRefRuleIndex === ruleIdx" class="p-3 space-y-3">
+                                            <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                                                <i class="ph ph-info text-blue-500"></i>
+                                                <span>按权限点分组，展示该规则关联的表和表字段</span>
+                                            </div>
+                                            <div v-for="group in getRefRuleGroupedByPermissionPoint(selectedRefRule)" :key="group.permissionPoint" class="border border-slate-100 rounded-lg overflow-hidden">
+                                                <!-- 权限点分组标题 -->
+                                                <div class="px-3 py-2 bg-indigo-50/30 flex items-center gap-2 border-b border-slate-100">
+                                                    <i class="ph ph-key text-indigo-500 text-sm"></i>
+                                                    <span class="text-sm font-semibold text-indigo-700">{{ group.permissionPoint }}</span>
+                                                    <span class="text-xs text-slate-500">{{ group.tables.length }}个表 {{ group.tables.reduce((a, t) => a + t.fields.length, 0) }}个字段</span>
+                                                </div>
+                                                <!-- 表和字段 -->
+                                                <div v-for="table in group.tables" :key="table.name" class="px-3 py-2 border-b border-slate-100 last:border-b-0">
+                                                    <div class="flex items-center gap-2 mb-1.5">
+                                                        <i class="ph ph-table text-slate-500 text-sm"></i>
+                                                        <span class="text-xs font-mono font-semibold text-slate-700">{{ table.name }}</span>
+                                                        <span v-if="table.chineseName" class="text-xs text-slate-500">{{ table.chineseName }}</span>
+                                                        <span class="text-[11px] text-slate-400">{{ table.fields.length }}个字段</span>
+                                                    </div>
+                                                    <div class="flex flex-wrap gap-1">
+                                                        <span v-for="field in table.fields" :key="field" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-100 font-mono">
+                                                            {{ field }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- 无权限点分组 -->
+                                            <div v-if="getRefRuleGroupedByPermissionPoint(selectedRefRule).length === 0" class="text-center py-3 text-sm text-slate-400">
+                                                <i class="ph ph-shield-warning text-xl block mb-1"></i>
+                                                暂无关联的表字段信息
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+
+                        <!-- ═══════════════════════════════════════════ -->
+                        <!-- 非全局规则：行权限配置 -->
+                        <!-- ═══════════════════════════════════════════ -->
+                        <div v-if="!isGlobal" class="space-y-4">
+                            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                                        <i class="ph ph-rows text-amber-600 text-sm"></i>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-800">行权限</h4>
+                                    <span class="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">行级过滤条件</span>
+                                </div>
+                                <!-- 行权限规则来源选择 -->
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[10px] text-slate-400">规则来源</span>
+                                    <div class="flex gap-1.5">
+                                        <button @click="switchRowRuleSource('custom')" 
+                                            :class="['px-2.5 py-1 border-2 rounded text-xs font-medium transition-all flex items-center justify-center gap-1', editingRule.rowRuleSource === 'custom' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 hover:border-amber-300 text-slate-500']">
+                                            <i class="ph ph-file-text text-xs"></i>
+                                            <span>定义表专属规则</span>
+                                        </button>
+                                        <button @click="switchRowRuleSource('global_reference')" 
+                                            :class="['px-2.5 py-1 border-2 rounded text-xs font-medium transition-all flex items-center justify-center gap-1', editingRule.rowRuleSource === 'global_reference' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 hover:border-amber-300 text-slate-500']">
+                                            <i class="ph ph-link text-xs"></i>
+                                            <span>引用访问控制规则</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ────────────────────────────────────── -->
+                            <!-- 行权限：定义表专属规则 → 行范围类型选择 -->
+                            <!-- ────────────────────────────────────── -->
+                            <div v-if="editingRule.rowRuleSource === 'custom' || !editingRule.rowRuleSource">
+                                <!-- 行范围类型 radio buttons -->
+                                <div class="flex items-center gap-4 mb-3">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" v-model="editingRule.rowRangeType" value="specified"
+                                            class="w-4 h-4 text-amber-600 border-slate-300 focus:ring-amber-500" />
+                                        <span class="text-sm font-medium text-slate-700">指定行范围</span>
+                                        <span class="text-xs text-slate-400">按条件筛选可见行</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" v-model="editingRule.rowRangeType" value="all"
+                                            class="w-4 h-4 text-amber-600 border-slate-300 focus:ring-amber-500" />
+                                        <span class="text-sm font-medium text-slate-700">全部行</span>
+                                        <span class="text-xs text-slate-400">不限制行可见范围</span>
+                                    </label>
+                                </div>
+
+                                <!-- 指定行范围：显示行过滤条件 -->
+                                <template v-if="editingRule.rowRangeType !== 'all'">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider">行过滤条件</label>
+                                    <button @click="$emit('addRowFilter')" class="px-2 py-1 text-xs text-amber-600 hover:bg-amber-50 rounded flex items-center gap-1">
+                                        <i class="ph ph-plus"></i> 添加条件
+                                    </button>
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-for="(filter, index) in editingRule.rowFilters" :key="index" class="flex items-start gap-2">
+                                        <div class="w-6 h-9 flex items-center justify-center text-xs font-medium text-slate-500 flex-shrink-0">
+                                            {{ index + 1 }}
+                                        </div>
+                                        <div class="flex-1 grid grid-cols-12 gap-2 p-2.5 bg-amber-50/30 rounded-lg border border-amber-200/50">
+                                            <select v-model="filter.field" class="col-span-3 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+                                                <option value="">选择标签</option>
+                                                <option v-for="tag in availableTags" :key="tag" :value="tag">{{ tag }}</option>
+                                            </select>
+                                            <select v-model="filter.operator" class="col-span-2 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+                                                <option value="=">=</option>
+                                                <option value="!=">!=</option>
+                                                <option value=">">&gt;</option>
+                                                <option value="<">&lt;</option>
+                                                <option value=">=">&gt;=</option>
+                                                <option value="<=">&lt;=</option>
+                                                <option value="IN">IN</option>
+                                                <option value="NOT IN">NOT IN</option>
+                                            </select>
+                                            <select v-model="filter.valueType" class="col-span-2 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+                                                <option value="literal">字面值</option>
+                                                <option value="env_var">环境变量</option>
+                                                <option v-if="filter.operator === 'IN' || filter.operator === 'NOT IN'" value="subquery">子查询</option>
+                                            </select>
+                                            <input v-model="filter.value" type="text" class="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="输入值" />
+                                        </div>
+                                        <button @click="$emit('removeRowFilter', index)" class="w-9 h-9 flex items-center justify-center text-red-600 hover:bg-red-50 rounded flex-shrink-0">
+                                            <i class="ph ph-trash text-base"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <p v-if="editingRule.rowFilters.length === 0" class="mt-2 text-sm text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                                    无行过滤条件
+                                </p>
+                                <div v-else class="mt-3 p-3 bg-amber-50/30 rounded-lg border border-amber-200/50">
+                                    <label class="block text-xs font-medium text-slate-700 mb-2">条件间的组合关系</label>
+                                    <input v-model="editingRule.conditionLogic" 
+                                        type="text" 
+                                        class="w-full px-3 py-2 border border-slate-300 rounded text-sm font-mono bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent" 
+                                        placeholder="例如：1 AND 2 OR 3" />
+                                    <p class="mt-2 text-xs text-slate-500">
+                                        <i class="ph ph-info text-blue-500"></i> 
+                                        使用条件序号（{{ editingRule.rowFilters.map((f, i) => i + 1).join(', ') }}）和逻辑运算符（AND、OR）来组合条件，支持括号。留空则默认为全部 AND 组合。
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- ────────────────────────────────────── -->
+                            <!-- 行权限：引用访问控制规则 -->
+                            <!-- ────────────────────────────────────── -->
+                            <div v-if="editingRule.rowRuleSource === 'global_reference'">
+                                <p class="text-sm text-slate-500 mb-3">
+                                    <i class="ph ph-info text-amber-500 mr-1"></i>
+                                    引用访问控制中的全局行权限规则，行过滤条件不可修改。
+                                </p>
+                                <!-- 选择全局规则 -->
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider">选择全局规则</label>
+                                    <div v-for="gRule in globalRules" :key="gRule.name"
+                                        @click="editingRule.globalRowRuleRef = gRule.name"
+                                        :class="['px-3 py-2.5 border rounded-lg transition-all cursor-pointer flex items-center gap-3',
+                                            editingRule.globalRowRuleRef === gRule.name ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200 hover:border-amber-300']">
+                                        <i :class="['ph ph-check-circle text-sm', editingRule.globalRowRuleRef === gRule.name ? 'text-amber-600' : 'text-slate-300']"></i>
+                                        <div>
+                                            <div class="text-sm font-medium text-slate-800">{{ gRule.name }}</div>
+                                            <div class="text-xs text-slate-500">{{ gRule.description }}</div>
+                                        </div>
+                                    </div>
+                                    <div v-if="globalRules.length === 0" class="p-4 text-center text-slate-400">
+                                        <i class="ph ph-shield-check text-2xl block mb-2"></i>
+                                        <p class="text-sm">暂无可引用的全局规则</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <!-- ═══════════════════════════════════════════ -->
+                        <!-- 全局规则：标签配置（仅 isGlobal 模式） -->
+                        <!-- ═══════════════════════════════════════════ -->
+                        <div v-if="isGlobal" class="space-y-4">
+                            <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
                                 <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
                                     <i class="ph ph-rows text-amber-600 text-sm"></i>
                                 </div>
-                                <h4 class="text-sm font-bold text-slate-800">行权限</h4>
-                                <span class="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">行级别过滤条件</span>
+                                <h4 class="text-sm font-bold text-slate-800">标签配置</h4>
+                                <span class="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">全局规则条件</span>
                             </div>
 
-                            <!-- 规则来源（仅非全局模式显示） -->
-                            <div v-if="!isGlobal">
-                                <label class="block text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">规则来源</label>
-                                <div class="flex gap-3">
-                                    <button @click="editingRule.ruleSource = 'custom'" 
-                                        :class="['flex-1 px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2', editingRule.ruleSource === 'custom' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-300 text-slate-700']">
-                                        <i class="ph ph-file-text"></i>
-                                        <span>表专属规则</span>
-                                    </button>
-                                    <button @click="editingRule.ruleSource = 'global_reference'" 
-                                        :class="['flex-1 px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2', editingRule.ruleSource === 'global_reference' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-300 text-slate-700']">
-                                        <i class="ph ph-link"></i>
-                                        <span>引用数据访问规则</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- ────────────────────────────────────── -->
-                            <!-- 表专属规则：条件配置 -->
-                            <!-- ────────────────────────────────────── -->
-                            <div v-if="isGlobal || editingRule.ruleSource === 'custom'">
+                            <!-- 条件配置 -->
+                            <div>
                                 <div class="flex items-center justify-between mb-2">
-                                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider">{{ isGlobal ? '标签配置' : '条件配置' }}</label>
+                                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider">标签配置</label>
                                     <button @click="$emit('addRowFilter')" class="px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 rounded flex items-center gap-1">
                                         <i class="ph ph-plus"></i> 添加条件
                                     </button>
@@ -390,17 +730,8 @@ window.AppTemplates = {
                                         </div>
                                         <div class="flex-1 grid grid-cols-12 gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
                                             <select v-model="filter.field" class="col-span-3 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                                <template v-if="isGlobal">
-                                                    <option value="">选择标签</option>
-                                                    <option v-for="tag in availableTags" :key="tag" :value="tag">{{ tag }}</option>
-                                                </template>
-                                                <template v-else>
-                                                    <option value="">选择字段</option>
-                                                    <option value="user_id">user_id</option>
-                                                    <option value="department_id">department_id</option>
-                                                    <option value="status">status</option>
-                                                    <option value="created_at">created_at</option>
-                                                </template>
+                                                <option value="">选择标签</option>
+                                                <option v-for="tag in availableTags" :key="tag" :value="tag">{{ tag }}</option>
                                             </select>
                                             <select v-model="filter.operator" class="col-span-2 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                                                 <option value="=">=</option>
@@ -415,15 +746,9 @@ window.AppTemplates = {
                                             <select v-model="filter.valueType" class="col-span-2 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                                                 <option value="literal">字面值</option>
                                                 <option value="env_var">环境变量</option>
+                                                <option v-if="filter.operator === 'IN' || filter.operator === 'NOT IN'" value="subquery">子查询</option>
                                             </select>
-                                            <select v-if="filter.valueType === 'env_var'" v-model="filter.value" class="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm font-mono bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                                <option value="">选择环境变量</option>
-                                                <option value="visiting_user.user_id">visiting_user.user_id</option>
-                                                <option value="visiting_user.role">visiting_user.role</option>
-                                                <option value="visiting_user.as_hrbp.department_ids">visiting_user.as_hrbp.department_ids</option>
-                                                <option value="visiting_user.as_teamleader.department_ids">visiting_user.as_teamleader.department_ids</option>
-                                            </select>
-                                            <input v-else v-model="filter.value" type="text" class="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="输入值" />
+                                            <input v-model="filter.value" type="text" class="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="输入值" />
                                         </div>
                                         <button @click="$emit('removeRowFilter', index)" class="w-9 h-9 flex items-center justify-center text-red-600 hover:bg-red-50 rounded flex-shrink-0">
                                             <i class="ph ph-trash text-base"></i>
@@ -431,7 +756,7 @@ window.AppTemplates = {
                                     </div>
                                 </div>
                                 <p v-if="editingRule.rowFilters.length === 0" class="mt-2 text-sm text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                                    {{ isGlobal ? '无标签配置条件' : '无行过滤条件（查看所有满足字段范围的行）' }}
+                                    无标签配置条件
                                 </p>
                                 <div v-else class="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                                     <label class="block text-xs font-medium text-slate-700 mb-2">条件间的组合关系</label>
@@ -445,131 +770,90 @@ window.AppTemplates = {
                                     </p>
                                 </div>
                             </div>
-
-                            <!-- ────────────────────────────────────── -->
-                            <!-- 引用数据访问规则 -->
-                            <!-- ────────────────────────────────────── -->
-                            <template v-if="!isGlobal && editingRule.ruleSource === 'global_reference'">
-                                <!-- 全局规则选择 -->
-                                <div>
-                                    <label class="block text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">选择数据访问规则</label>
-                                    <div class="relative">
-                                        <button @click="showGlobalDropdown = !showGlobalDropdown" type="button"
-                                            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white hover:border-indigo-300 transition-all flex items-center justify-between shadow-sm">
-                                            <span :class="editingRule.globalRuleRef ? 'text-slate-900 font-medium' : 'text-slate-400'">
-                                                {{ editingRule.globalRuleRef || '选择数据访问规则' }}
-                                            </span>
-                                            <i class="ph ph-caret-down text-slate-400 transition-transform" :class="{'rotate-180': showGlobalDropdown}"></i>
-                                        </button>
-                                        
-                                        <!-- 下拉列表 -->
-                                        <div v-if="showGlobalDropdown" 
-                                            class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden">
-                                            <div v-if="globalRules.length === 0" class="p-8 text-center bg-slate-50/50">
-                                                <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                    <i class="ph ph-shield-warning text-slate-400 text-2xl"></i>
-                                                </div>
-                                                <p class="text-sm text-slate-600 font-medium mb-1">暂无可引用的数据访问规则</p>
-                                                <p class="text-xs text-slate-400">请先在"文件夹详情页 - 权限规则"中创建</p>
-                                            </div>
-                                            <div v-else class="max-h-60 overflow-y-auto p-1.5">
-                                                <div v-for="rule in globalRules" :key="rule.name" 
-                                                    @click="selectGlobalRule(rule)"
-                                                    class="p-3 hover:bg-slate-50 rounded-md cursor-pointer transition-colors group">
-                                                    <div class="flex items-center justify-between mb-1">
-                                                        <span class="text-sm font-semibold text-slate-900 group-hover:text-indigo-600">{{ rule.name }}</span>
-                                                        <i v-if="editingRule.globalRuleRef === rule.name" class="ph-fill ph-check-circle text-indigo-600"></i>
-                                                    </div>
-                                                    <p class="text-xs text-slate-500 line-clamp-1">{{ rule.description }}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- 全局规则详情 & 映射配置 -->
-                                <div v-if="editingRule.globalRuleRef" class="space-y-5 pt-3 border-t border-slate-100">
-                                     <!-- 1. 全局规则条件展示 (Read Only) -->
-                                     <div>
-                                        <h4 class="text-xs font-medium text-slate-500 mb-3 uppercase tracking-wider">规则条件 <span class="text-[10px] font-normal text-slate-400 normal-case ml-1">(继承自数据访问规则，不可编辑)</span></h4>
-                                        <div class="space-y-2">
-                                             <div v-for="(filter, idx) in globalRules.find(r => r.name === editingRule.globalRuleRef)?.rowFilters || []" :key="idx" class="flex items-center gap-2">
-                                                <div class="w-6 h-9 flex items-center justify-center text-xs font-medium text-slate-400 flex-shrink-0 border-r border-transparent">{{ idx + 1 }}</div>
-                                                <div class="flex-1 grid grid-cols-12 gap-2 p-1.5 bg-slate-50/50 rounded-lg border border-slate-200 opacity-80 pointer-events-none">
-                                                    <!-- Field/Tag: 3 cols -->
-                                                    <div class="col-span-3 px-3 py-2 bg-slate-100 border border-slate-200 rounded text-sm text-slate-800 flex items-center truncate">
-                                                        {{ filter.field }}
-                                                    </div>
-                                                    <!-- Operator: 2 cols -->
-                                                    <div class="col-span-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded text-sm text-slate-800 flex items-center justify-center font-mono">
-                                                        {{ filter.operator }}
-                                                    </div>
-                                                    <!-- Value Type: 2 cols -->
-                                                     <div class="col-span-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded text-sm text-slate-800 flex items-center justify-center">
-                                                        {{ filter.valueType === 'env_var' ? '环境变量' : '字面值' }}
-                                                    </div>
-                                                    <!-- Value: 5 cols -->
-                                                     <div class="col-span-5 px-3 py-2 bg-slate-100 border border-slate-200 rounded text-sm text-slate-800 font-mono truncate">
-                                                        {{ filter.value || 'NULL' }}
-                                                    </div>
-                                                </div>
-                                             </div>
-                                             <div v-if="!globalRules.find(r => r.name === editingRule.globalRuleRef)?.rowFilters?.length" class="text-sm text-slate-400 italic bg-slate-50 px-4 py-2 rounded">无行过滤条件</div>
-                                        </div>
-                                     </div>
-
-                                     <!-- 2. 标签映射配置 -->
-                                     <div v-if="editingRule.tagFieldMappings && Object.keys(editingRule.tagFieldMappings).length > 0">
-                                         <div class="flex items-center justify-between mb-3">
-                                            <h4 class="text-xs font-medium text-slate-500 uppercase tracking-wider">标签映射配置</h4>
-                                            <span class="text-xs text-slate-400">将规则标签映射到当前表字段</span>
-                                         </div>
-                                         
-                                         <div class="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                             <div v-for="(fieldValue, tagName) in editingRule.tagFieldMappings" :key="tagName" class="flex items-center gap-3">
-                                                  <!-- Left: Tag (Readonly) -->
-                                                  <div class="flex-1">
-                                                      <div class="flex items-center gap-2 mb-1.5">
-                                                          <i class="ph ph-tag text-amber-500 text-xs"></i>
-                                                          <span class="text-xs font-medium text-slate-500">规则标签</span>
-                                                      </div>
-                                                      <div class="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 flex items-center gap-2 select-none cursor-not-allowed">
-                                                          {{ tagName }}
-                                                      </div>
-                                                  </div>
-                                                  
-                                                  <!-- Arrow Icon -->
-                                                  <div class="flex-shrink-0 pt-6 text-slate-300">
-                                                      <i class="ph ph-arrow-right text-lg"></i>
-                                                  </div>
-
-                                                  <!-- Right: Field Selection -->
-                                                  <div class="flex-1">
-                                                      <div class="flex items-center justify-between gap-2 mb-1.5">
-                                                          <span class="text-xs font-medium text-slate-500">映射到表字段</span>
-                                                          <span v-if="fieldValue" class="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 flex items-center gap-1"><i class="ph ph-check-circle"></i> 已绑定</span>
-                                                          <span v-else class="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex items-center gap-1"><i class="ph ph-warning-circle"></i> 未绑定</span>
-                                                      </div>
-                                                      <div class="relative">
-                                                          <select v-model="editingRule.tagFieldMappings[tagName]" 
-                                                              class="w-full px-3 py-2.5 border rounded-lg text-sm appearance-none bg-white transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 pl-3 pr-8"
-                                                              :class="fieldValue ? 'border-slate-200 text-slate-900' : 'border-amber-300 text-slate-900'">
-                                                              <option value="">-- 请选择映射字段 --</option>
-                                                              <option v-for="f in schemaFields" :key="f.name" :value="f.name">{{ f.name }} {{ f.description ? '(' + f.description + ')' : '' }}</option>
-                                                          </select>
-                                                          <i class="ph ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 mt-3 text-slate-400 pointer-events-none"></i>
-                                                      </div>
-                                                  </div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     <div v-else class="text-sm text-slate-400 italic text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                                         此数据访问规则无需要映射的标签
-                                     </div>
-                                </div>
-                            </template>
                         </div>
 
+
+                        <!-- ═══════════════════════════════════════════ -->
+                        <!-- 授权有效期 -->
+                        <!-- ═══════════════════════════════════════════ -->
+                        <div class="border-t border-slate-200 pt-4">
+                            <div class="flex items-center gap-2 pb-2">
+                                <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+                                    <i class="ph ph-calendar-check text-violet-600 text-sm"></i>
+                                </div>
+                                <label class="text-sm font-bold text-slate-800">授权有效期 <span class="text-red-500">*</span></label>
+                            </div>
+                            <div class="space-y-3">
+                                <!-- 快捷选择 -->
+                                <div class="flex items-center gap-2">
+                                    <button @click="editingRule.validityType = 'permanent'" type="button"
+                                        :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                                 editingRule.validityType === 'permanent' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                        长期有效
+                                    </button>
+                                    <button @click="editingRule.validityType = '30d'" type="button"
+                                        :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                                 editingRule.validityType === '30d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                        30天
+                                    </button>
+                                    <button @click="editingRule.validityType = '90d'" type="button"
+                                        :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                                 editingRule.validityType === '90d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                        90天
+                                    </button>
+                                    <button @click="editingRule.validityType = '180d'" type="button"
+                                        :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                                 editingRule.validityType === '180d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                        180天
+                                    </button>
+                                    <button @click="editingRule.validityType = 'custom'" type="button"
+                                        :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                                 editingRule.validityType === 'custom' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                        自定义时间
+                                    </button>
+                                </div>
+
+                                <!-- 长期有效提示 -->
+                                <div v-if="editingRule.validityType === 'permanent'"
+                                    class="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100/50 text-xs">
+                                    <i class="ph ph-infinity text-sm"></i>
+                                    <span>授权长期有效，无过期时间</span>
+                                </div>
+
+                                <!-- 快捷选择计算结果 -->
+                                <div v-if="editingRule.validityType === '30d' || editingRule.validityType === '90d' || editingRule.validityType === '180d'"
+                                    class="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100/50 text-xs">
+                                    <i class="ph ph-calendar text-sm"></i>
+                                    <span>有效期至 {{ getComputedExpiryDate(editingRule.validityType) }}</span>
+                                </div>
+
+                                <!-- 自定义时间范围选择 -->
+                                <div v-if="editingRule.validityType === 'custom'" class="space-y-2">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-1">
+                                            <label class="block text-xs text-slate-500 mb-1">开始时间</label>
+                                            <input v-model="editingRule.validityStartDate" type="date"
+                                                class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="block text-xs text-slate-500 mb-1">截止时间</label>
+                                            <input v-model="editingRule.validityEndDate" type="date"
+                                                class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                                        </div>
+                                    </div>
+                                    <div v-if="editingRule.validityStartDate && editingRule.validityEndDate && new Date(editingRule.validityEndDate) <= new Date(editingRule.validityStartDate)"
+                                        class="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg border border-red-100/50 text-xs">
+                                        <i class="ph ph-warning text-sm"></i>
+                                        <span>截止时间必须大于开始时间</span>
+                                    </div>
+                                    <div v-if="editingRule.validityStartDate && editingRule.validityEndDate && new Date(editingRule.validityEndDate) > new Date(editingRule.validityStartDate)"
+                                        class="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100/50 text-xs">
+                                        <i class="ph ph-calendar text-sm"></i>
+                                        <span>有效期：{{ editingRule.validityStartDate }} 至 {{ editingRule.validityEndDate }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                     </div>
                     <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0">
@@ -590,6 +874,101 @@ window.AppTemplates = {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- 切换规则来源确认弹窗 -->
+            <div v-if="showRuleSourceSwitchConfirm" class="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+                    <div class="p-6 text-center">
+                        <div class="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                            <i class="ph ph-warning text-amber-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-900 mb-2">{{ pendingRuleSource?.target === 'row' ? '切换行权限规则来源' : '切换列权限规则来源' }}</h3>
+                        <p class="text-sm text-slate-600 mb-6">{{ pendingRuleSource?.target === 'row' ? '切换行权限规则来源后将清空已有配置（行过滤条件等），此操作不可恢复。' : '切换列权限规则来源后将清空已有配置（已选规则等），此操作不可恢复。' }}</p>
+                        <div class="flex items-center justify-center gap-3">
+                            <button @click="cancelRuleSourceSwitch" class="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium">取消</button>
+                            <button @click="confirmRuleSourceSwitch" class="px-5 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 shadow-sm">确认切换</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 新建子查询弹窗（独立同级，取代弹窗套弹窗） -->
+            <div v-if="showSubqueryModal" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" @click.self="closeSubqueryDrawer">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+                    <!-- 弹窗头部 -->
+                    <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-indigo-50 to-slate-50">
+                        <div class="flex items-center gap-3">
+                            <button @click="closeSubqueryDrawer" class="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="返回权限规则">
+                                <i class="ph ph-arrow-left text-lg"></i>
+                            </button>
+                            <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                                <i class="ph-bold ph-database text-base"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">{{ subqueryEditMode ? '编辑子查询' : '新建子查询' }}</h3>
+                                <p class="text-[11px] text-slate-500">{{ subqueryEditMode ? 'Code 不可修改' : '创建后将自动选中' }}</p>
+                            </div>
+                        </div>
+                        <button @click="closeSubqueryDrawer" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-white/60 rounded-lg transition-colors">
+                            <i class="ph ph-x text-lg"></i>
+                        </button>
+                    </div>
+                    <!-- 弹窗内容 -->
+                    <div class="flex-1 overflow-y-auto p-5">
+                        <div class="space-y-4">
+                            <!-- 子查询名称 -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2"><span class="text-red-500">*</span> 子查询名称</label>
+                                <input v-model="newSubqueryForm.name" type="text" placeholder="例如：活跃用户列表"
+                                    class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" />
+                            </div>
+                            <!-- Code -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Code</label>
+                                <div class="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm font-mono text-slate-500 select-none cursor-not-allowed min-h-[42px] flex items-center">
+                                    <span v-if="newSubqueryForm.code">{{ newSubqueryForm.code }}</span>
+                                    <span v-else class="text-slate-400 italic">根据名称自动生成</span>
+                                </div>
+                                <p class="mt-1 text-xs text-slate-400">用于程序标识，仅允许小写字母、数字和下划线{{ subqueryEditMode ? '（创建后不可修改）' : '，根据名称自动生成' }}</p>
+                            </div>
+                            <!-- SQL 编辑器 -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">SQL 编辑器</label>
+                                <div class="relative">
+                                    <textarea v-model="newSubqueryForm.sql" rows="7"
+                                        placeholder="输入 SQL 查询语句...&#10;&#10;示例：&#10;SELECT user_id FROM user_stats&#10;WHERE last_login > DATE_SUB(NOW(), INTERVAL 30 DAY)"
+                                        class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm font-mono bg-slate-900 text-slate-100 resize-none focus:ring-2 focus:ring-indigo-500 transition-all leading-relaxed"></textarea>
+                                    <button @click="validateNewSubquerySql" type="button"
+                                        class="absolute top-2 right-2 px-3 py-1 bg-indigo-600 text-white rounded text-xs font-medium hover:bg-indigo-700 transition-colors">
+                                        执行
+                                    </button>
+                                </div>
+                                <!-- 验证结果 -->
+                                <div v-if="newSubqueryValidation" class="mt-2"
+                                    :class="newSubqueryValidation.success
+                                        ? 'p-2.5 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700 flex items-center gap-2'
+                                        : 'p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2'">
+                                    <i :class="newSubqueryValidation.success ? 'ph ph-check-circle text-base' : 'ph ph-x-circle text-base'"></i>
+                                    {{ newSubqueryValidation.message }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 弹窗底部 -->
+                    <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50">
+                        <button @click="closeSubqueryDrawer" type="button"
+                            class="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg text-sm transition-colors">
+                            <i class="ph ph-arrow-left text-sm"></i> 返回
+                        </button>
+                        <button @click="saveNewSubquery" type="button"
+                            :disabled="!newSubqueryForm.name.trim()"
+                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                            {{ subqueryEditMode ? '保存修改' : '保存并选中' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
             </div>
     `,
     DetailData: `
@@ -808,6 +1187,10 @@ window.AppTemplates = {
                 </div>
                 
                 <div class="flex border-b border-slate-200 bg-slate-50/80 flex-shrink-0">
+                    <button @click="dataActiveTab = 'basic_info'"
+                        :class="['px-5 py-3 text-sm font-medium border-b-2 transition-colors', dataActiveTab === 'basic_info' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                        <i class="ph ph-info mr-1.5"></i>基本信息
+                    </button>
                     <button @click="dataActiveTab = 'schema'"
                         :class="['px-5 py-3 text-sm font-medium border-b-2 transition-colors', dataActiveTab === 'schema' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700']">
                         <i class="ph ph-list-bullets mr-1.5"></i>字段信息
@@ -824,6 +1207,105 @@ window.AppTemplates = {
                 </div>
 
                 <div class="flex-1 overflow-auto p-5">
+                    <!-- Tab: 基本信息 -->
+                    <div v-show="dataActiveTab === 'basic_info'" class="space-y-6">
+                        <!-- 表名称 -->
+                        <div class="p-5 border border-slate-200 rounded-lg bg-white">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                                        <i class="ph ph-database text-indigo-600 text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-semibold text-slate-400 uppercase block">表名称</label>
+                                        <div class="flex items-center gap-2 group">
+                                            <span class="text-lg font-bold text-slate-900 font-mono">{{ node?.name }}</span>
+                                            <button @click.stop="copyToClipboard(node?.name)"
+                                                class="p-1 text-slate-400 hover:text-indigo-600 rounded opacity-0 group-hover:opacity-100 transition-all"
+                                                title="复制表名">
+                                                <i class="ph ph-copy text-sm"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span v-if="node?.sourceType === 'VIEW'" class="px-2.5 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium border border-blue-100">
+                                        <i class="ph ph-file-sql mr-1"></i>SQL 视图
+                                    </span>
+                                    <span v-else-if="node?.sourceType === 'EXCEL'" class="px-2.5 py-1 bg-green-50 text-green-700 rounded text-xs font-medium border border-green-100">
+                                        <i class="ph ph-table mr-1"></i>Excel 上传
+                                    </span>
+                                    <span v-else class="px-2.5 py-1 bg-slate-50 text-slate-600 rounded text-xs font-medium border border-slate-200">
+                                        <i class="ph ph-database mr-1"></i>结构化数据
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-slate-500 mb-3">
+                                <span>{{ node?.chineseName || '未设置中文名' }}</span>
+                                <span class="text-slate-300">|</span>
+                                <span>ID: {{ node?.id }}</span>
+                            </div>
+                            <!-- Resource Tags -->
+                            <div class="flex items-center gap-1.5">
+                                <div v-for="tag in (node.tags || ['基础数据', '结构化'])" :key="tag"
+                                    class="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-medium border border-indigo-100 flex items-center gap-1">
+                                    <i class="ph ph-tag text-[8px]"></i>
+                                    {{ tag }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 表描述 -->
+                        <div class="flex items-start gap-3 p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                            <div class="flex-1 min-w-0">
+                                <label class="text-xs font-semibold text-slate-500 uppercase mb-1 block">表描述</label>
+                                <p class="text-sm text-slate-800">{{ tableDescription || '—' }}</p>
+                            </div>
+                            <button @click="openTableDescEdit" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded"><i class="ph ph-pencil-simple text-sm"></i></button>
+                        </div>
+
+                        <!-- 创建人 & 版本信息 -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                                <label class="text-xs font-semibold text-slate-500 uppercase mb-1 block">创建人</label>
+                                <div class="flex items-center gap-2">
+                                    <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=creator" class="w-6 h-6 rounded-full bg-slate-200" />
+                                    <span class="text-sm text-slate-700">{{ currentVersion.createdBy || 'Yuzhiyuan' }}</span>
+                                </div>
+                            </div>
+                            <div class="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                                <label class="text-xs font-semibold text-slate-500 uppercase mb-1 block">当前版本</label>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-semibold font-mono text-slate-700">{{ currentVersion.version }}</span>
+                                    <span v-if="currentVersion.environments && currentVersion.environments.online" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">生产</span>
+                                    <span v-if="currentVersion.environments && currentVersion.environments.pre" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">预发</span>
+                                    <span v-if="currentVersion.environments && currentVersion.environments.test && !currentVersion.environments.online && !currentVersion.environments.pre" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">测试</span>
+                                    <span v-if="!currentVersion.environments || !(currentVersion.environments.online || currentVersion.environments.pre || currentVersion.environments.test)" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">未发布</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 统计信息 -->
+                        <div class="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                            <label class="text-xs font-semibold text-slate-500 uppercase mb-2 block">统计信息</label>
+                            <pre class="text-xs text-slate-700 whitespace-pre-wrap font-sans">{{ tableStatistics }}</pre>
+                        </div>
+
+                        <!-- 字段概览 -->
+                        <div class="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                            <label class="text-xs font-semibold text-slate-500 uppercase mb-2 block">字段概览</label>
+                            <div class="flex flex-wrap gap-2">
+                                <div v-for="(f, i) in schemaFields" :key="i" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs shadow-sm">
+                                    <span class="font-mono font-semibold text-slate-800">{{ f.name }}</span>
+                                    <span class="text-slate-400">{{ f.type }}</span>
+                                    <span v-if="f.governed_tag" class="px-1 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px]"><i class="ph ph-tag text-[8px]"></i></span>
+                                    <span v-if="f.is_encrypted" class="px-1 py-0.5 bg-rose-50 text-rose-700 rounded text-[10px]"><i class="ph ph-lock text-[8px]"></i></span>
+                                    <span v-if="f.is_partition" class="px-1 py-0.5 bg-violet-50 text-violet-700 rounded text-[10px]"><i class="ph ph-columns text-[8px]"></i></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div v-show="dataActiveTab === 'schema'" class="space-y-5">
                         <!-- Warning Banners for Version 1.0.1 -->
                         <div v-if="currentVersion.version === '1.0.1'" class="space-y-3">
@@ -837,19 +1319,6 @@ window.AppTemplates = {
                         <p class="text-sm text-slate-500">
                             {{ node?.sourceType === 'EXCEL' ? '通过本地文件上传，支持对字段描述、治理标签进行编辑。' : '通过 SQL 视图注册进入，仅支持对已有字段的描述、治理标签、分区标记等进行修改。' }}
                         </p>
-                        <!-- 表描述 -->
-                        <div class="flex items-start gap-3 p-4 border border-slate-200 rounded-lg bg-slate-50/50">
-                            <div class="flex-1 min-w-0">
-                                <label class="text-xs font-semibold text-slate-500 uppercase mb-1 block">表描述</label>
-                                <p class="text-sm text-slate-800">{{ tableDescription || '—' }}</p>
-                            </div>
-                            <button @click="openTableDescEdit" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded"><i class="ph ph-pencil-simple text-sm"></i></button>
-                        </div>
-                        <!-- 表统计信息 -->
-                        <div class="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
-                            <label class="text-xs font-semibold text-slate-500 uppercase mb-2 block">统计信息</label>
-                            <pre class="text-xs text-slate-700 whitespace-pre-wrap font-sans">{{ tableStatistics }}</pre>
-                        </div>
                         <div class="border border-slate-200 rounded-lg overflow-hidden">
                             <table class="min-w-full">
                                 <thead class="bg-slate-50 border-b border-slate-200">
@@ -857,6 +1326,8 @@ window.AppTemplates = {
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">字段名</th>
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">类型</th>
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">描述</th>
+
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">分类</th>
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">治理标签</th>
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">关联字典</th>
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">加密</th>
@@ -870,6 +1341,16 @@ window.AppTemplates = {
                                         <td class="px-4 py-3 text-sm font-mono text-slate-800">{{ f.name }}</td>
                                         <td class="px-4 py-3 text-sm text-slate-600">{{ f.type }}</td>
                                         <td class="px-4 py-3 text-sm text-slate-600">{{ f.description }}</td>
+
+                                        <!-- 分类列 -->
+                                        <td class="px-4 py-3">
+                                            <div v-if="f.classification && f.classification.length > 0" class="flex flex-wrap gap-1">
+                                                <span v-for="cls in f.classification" :key="cls" @click="openFieldEdit(i)" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 cursor-pointer hover:bg-indigo-200 transition-all">
+                                                    {{ cls }}
+                                                </span>
+                                            </div>
+                                            <span v-else class="text-slate-400 text-sm">—</span>
+                                        </td>
                                         <td class="px-4 py-3">
                                             <div v-if="f.governed_tag" class="relative inline-block group">
                                                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 cursor-default">
@@ -1136,6 +1617,8 @@ window.AppTemplates = {
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">授权对象</th>
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">列权限</th>
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">行权限</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">授权状态</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">权限有效期</th>
                                         <th class="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase w-20">操作</th>
                                     </tr>
                                 </thead>
@@ -1150,39 +1633,101 @@ window.AppTemplates = {
                                         </td>
                                         <!-- 列权限 -->
                                         <td class="px-4 py-3">
-                                            <template v-if="r.columnVisibility">
-                                                <span v-if="r.columnVisibility.mode === 'all'" class="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-50 px-2 py-1 rounded-md border border-green-100">
-                                                    <i class="ph ph-check-circle text-sm"></i> 全部字段
-                                                </span>
-                                                <span v-else-if="r.columnVisibility.mode === 'include'" class="inline-flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
-                                                    <i class="ph ph-eye text-sm"></i> 授权 <code class="font-mono text-[11px] ml-0.5">{{ r.columnVisibility.fields.join(', ') }}</code>
-                                                </span>
-                                                <span v-else-if="r.columnVisibility.mode === 'exclude'" class="inline-flex items-center gap-1.5 text-xs text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-100">
-                                                    <i class="ph ph-eye-slash text-sm"></i> 排除 <code class="font-mono text-[11px] ml-0.5">{{ r.columnVisibility.fields.join(', ') }}</code>
-                                                </span>
+                                            <!-- 引用规则：显示引用的规则名 -->
+                                            <template v-if="r.columnRuleSource === 'global_reference' || r.ruleSource === 'permission_point_reference'">
+                                                <div class="flex items-center gap-1 mb-1">
+                                                    <i class="ph ph-link text-xs text-indigo-500"></i>
+                                                    <span class="text-xs text-indigo-600 font-medium">引用</span>
+                                                </div>
+                                                <template v-if="r.selectedRefRules && r.selectedRefRules.length > 0">
+                                                    <div v-for="refRule in r.selectedRefRules" :key="refRule.id" class="flex items-center gap-1">
+                                                        <i class="ph ph-shield-check text-xs text-indigo-400"></i>
+                                                        <span class="text-xs text-indigo-700 font-medium">{{ refRule.name }}</span>
+                                                    </div>
+                                                </template>
+                                                <template v-else-if="r.refRuleNames && r.refRuleNames.length > 0">
+                                                    <div v-for="rn in r.refRuleNames" :key="rn" class="flex items-center gap-1">
+                                                        <i class="ph ph-shield-check text-xs text-indigo-400"></i>
+                                                        <span class="text-xs text-indigo-700 font-medium">{{ rn }}</span>
+                                                    </div>
+                                                </template>
                                             </template>
-                                            <span v-else class="text-xs text-slate-400">-</span>
+                                            <!-- 自定义规则：全部/授权/排除字段 -->
+                                            <template v-else-if="r.columnVisibility">
+                                                <div v-if="r.columnVisibility.mode === 'all'" class="flex items-center gap-1.5">
+                                                    <i class="ph ph-check-circle text-sm text-green-600"></i>
+                                                    <span class="text-xs font-medium text-green-700">
+                                                        全部字段
+                                                    </span>
+                                                </div>
+                                                <div v-else-if="r.columnVisibility.mode === 'include'" class="relative group">
+                                                    <span class="inline-flex items-center gap-1 text-xs text-blue-700 font-medium">
+                                                        <i class="ph ph-eye text-sm"></i>
+                                                        授权 {{ r.columnVisibility.fields.length }} 个字段
+                                                    </span>
+                                                    <div class="absolute left-0 top-full mt-1 z-50 hidden group-hover:block min-w-max max-w-md p-2.5 bg-slate-800 text-slate-100 rounded-lg shadow-xl text-xs">
+                                                        <p class="font-medium text-slate-200 mb-1">授权字段列表</p>
+                                                        <div class="flex flex-wrap gap-1">
+                                                            <span v-for="f in r.columnVisibility.fields" :key="f" class="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300 font-mono">{{ f }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div v-else-if="r.columnVisibility.mode === 'exclude'" class="relative group">
+                                                    <span class="inline-flex items-center gap-1 text-xs text-red-700 font-medium">
+                                                        <i class="ph ph-eye-slash text-sm"></i>
+                                                        排除 {{ r.columnVisibility.fields.length }} 个字段
+                                                    </span>
+                                                    <div class="absolute left-0 top-full mt-1 z-50 hidden group-hover:block min-w-max max-w-md p-2.5 bg-slate-800 text-slate-100 rounded-lg shadow-xl text-xs">
+                                                        <p class="font-medium text-slate-200 mb-1">排除字段列表</p>
+                                                        <div class="flex flex-wrap gap-1">
+                                                            <span v-for="f in r.columnVisibility.fields" :key="f" class="inline-flex items-center px-1.5 py-0.5 rounded bg-red-900/40 text-red-300 font-mono">{{ f }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
                                         </td>
                                         <!-- 行权限 -->
                                         <td class="px-4 py-3">
-                                            <div v-if="r.ruleSource === 'custom' || !r.ruleSource">
-                                                <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 px-2 py-1 rounded-md border border-slate-200">
-                                                    <i class="ph ph-file-text text-sm text-slate-500"></i> 表专属
-                                                </span>
-                                                <span v-if="r.rowFilters && r.rowFilters.filter(f => f.field).length > 0" class="ml-1.5 text-[11px] text-slate-500 font-mono">
-                                                    {{ r.conditionLogic?.trim() || r.rowFilters.filter(f => f.field).map((f, idx) => idx + 1).join(' AND ') }}
-                                                </span>
-                                                <span v-else class="ml-1.5 text-[11px] text-slate-400 italic">无条件</span>
-                                            </div>
-                                            <div v-else-if="r.ruleSource === 'global_reference'">
-                                                <span class="inline-flex items-center gap-1.5 text-xs text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
-                                                    <i class="ph ph-link text-sm"></i> 引用
-                                                </span>
-                                                <button v-if="r.globalRuleRef" @click="navigateToRule(r.globalRuleRef)" class="ml-1.5 text-xs text-cyan-600 hover:text-cyan-800 underline decoration-dashed font-medium">
-                                                    {{ r.globalRuleRef }}
-                                                </button>
-                                            </div>
-                                            <span v-else class="text-xs text-slate-400">-</span>
+                                            <!-- 引用行权限 -->
+                                            <template v-if="r.rowRuleSource === 'global_reference' || (r.ruleSource === 'permission_point_reference' && r.selectedRefRules)">
+                                                <div class="flex items-center gap-1 mb-1">
+                                                    <i class="ph ph-link text-xs text-indigo-500"></i>
+                                                    <span class="text-xs text-indigo-600 font-medium">引用</span>
+                                                </div>
+                                                <template v-if="r.selectedRefRules && r.selectedRefRules.length > 0">
+                                                    <div v-for="refRule in r.selectedRefRules" :key="refRule.id">
+                                                        <span class="text-xs text-indigo-700 font-medium">{{ refRule.name }}</span>
+                                                    </div>
+                                                </template>
+                                            </template>
+                                            <!-- 自定义行权限：显示行表达式 -->
+                                            <template v-else-if="r.rowFilters && r.rowFilters.length > 0">
+                                                <div class="space-y-1">
+                                                    <div v-for="(filter, fi) in r.rowFilters" :key="fi" class="flex items-center gap-1 text-xs">
+                                                        <span class="font-mono text-slate-700">{{ filter.field ? filter.field.split('/').pop() : '?' }}</span>
+                                                        <span class="text-slate-500">{{ filter.operator }}</span>
+                                                        <span class="font-mono text-slate-700">{{ filter.value }}</span>
+                                                    </div>
+                                                    <p v-if="r.conditionLogic && r.rowFilters.length > 1" class="text-[11px] text-slate-400 mt-0.5">
+                                                        <i class="ph ph-info text-blue-400 mr-0.5"></i>{{ r.conditionLogic }}
+                                                    </p>
+                                                </div>
+                                            </template>
+                                            <span v-else class="text-xs text-slate-400">无限制</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span :class="['inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full', r.validityType === 'permanent' || !r.expiryDate || (r.validityType !== 'custom' && new Date(getComputedExpiryDate(r.validityType)) > new Date()) || (r.validityType === 'custom' && new Date(r.expiryDate) > new Date()) ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700']">
+                                                <i :class="['ph text-xs', r.validityType === 'permanent' || !r.expiryDate || (r.validityType !== 'custom' && new Date(getComputedExpiryDate(r.validityType)) > new Date()) || (r.validityType === 'custom' && new Date(r.expiryDate) > new Date()) ? 'ph-check-circle' : 'ph-warning-circle']"></i>
+                                                {{ r.validityType === 'permanent' || !r.expiryDate || (r.validityType !== 'custom' && new Date(getComputedExpiryDate(r.validityType)) > new Date()) || (r.validityType === 'custom' && new Date(r.expiryDate) > new Date()) ? '生效中' : '已过期' }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <span v-if="r.validityType === 'permanent'" class="text-slate-600">长期有效</span>
+                                            <span v-else-if="r.validityType === '30d'" class="text-slate-600">截止到 {{ getComputedExpiryDate('30d').replace(/-/g, '年').replace(/-/g, '月') }}日</span>
+                                            <span v-else-if="r.validityType === '90d'" class="text-slate-600">截止到 {{ getComputedExpiryDate('90d').replace(/-/g, '年').replace(/-/g, '月') }}日</span>
+                                            <span v-else-if="r.validityType === '180d'" class="text-slate-600">截止到 {{ getComputedExpiryDate('180d').replace(/-/g, '年').replace(/-/g, '月') }}日</span>
+                                            <span v-else-if="r.expiryDate" class="text-slate-600">截止到 {{ r.expiryDate.replace(/-/g, '年').replace(/-/g, '月') }}日</span>
+                                            <span v-else class="text-slate-400">未设置</span>
                                         </td>
                                         <td class="px-4 py-3 text-right">
                                             <button @click="openAuthRuleEdit(i)" class="text-slate-400 hover:text-indigo-600 p-1"><i class="ph ph-pencil-simple text-sm"></i></button>
@@ -1191,9 +1736,11 @@ window.AppTemplates = {
                                 </tbody>
                             </table>
                         </div>
-                        <button @click="openAuthRuleEdit(-1)" class="px-3 py-1.5 bg-slate-50 text-slate-600 text-xs font-medium rounded hover:bg-slate-100">
-                            <i class="ph ph-plus"></i> 添加规则
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button @click="openAuthRuleEdit(-1)" class="px-3 py-1.5 bg-slate-50 text-slate-600 text-xs font-medium rounded hover:bg-slate-100">
+                                <i class="ph ph-plus"></i> 添加规则
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1221,6 +1768,8 @@ window.AppTemplates = {
                     :editing-field-index="editingFieldIndex"
                     :schema-fields="schemaFields"
                     :governed-tag-tree="governedTagTree"
+                    :classification-tree="classificationTree"
+                    :classification-options="classificationOptions"
                     :dictionaries="dictionaries"
                     :show-tag-tree-dropdown="showTagTreeDropdown"
                     :tag-tree-expanded="tagTreeExpanded"
@@ -1291,6 +1840,9 @@ window.AppTemplates = {
                     :schema-fields="schemaFields"
                     :show-audience-dropdown="showAudienceDropdown"
                     :global-rules="globalRules"
+                    :permission-point-rules="permissionPointRules"
+                    :column-permission-rules="columnPermissionRules"
+                    :available-tables-for-col-ref="availableTablesForColumnPermission"
                     @close="closeAuthRuleEdit"
                     @save="saveAuthRuleEdit"
                     @update:showAudienceDropdown="showAudienceDropdown = $event"
@@ -1298,6 +1850,10 @@ window.AppTemplates = {
                     @addRowFilter="addRowFilter"
                     @removeRowFilter="removeRowFilter"
                     @toggleColumnField="toggleColumnField"
+                    @toggleSubqueryDropdown="toggleSubqueryDropdown"
+                    @updateSubquerySearch="updateSubquerySearch"
+                    @selectSubquery="selectSubquery"
+                    @openCreateSubqueryModal="openCreateSubqueryModal"
                 />
 
                 <!-- 版本发布弹窗 -->
@@ -1341,6 +1897,8 @@ window.AppTemplates = {
                         </div>
                     </div>
                 </div>
+
+
             </div>
     `,
     TagCollection: `
@@ -1797,6 +2355,7 @@ window.AppTemplates = {
                                             <th class="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">字段名称</th>
                                             <th class="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">类型</th>
                                             <th class="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">字段描述 (手动输入)</th>
+                                            <th class="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">权限点</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 bg-white">
@@ -1814,9 +2373,44 @@ window.AppTemplates = {
                                                     class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-300"
                                                     placeholder="请输入该字段的描述..." />
                                             </td>
+                                            <td class="px-6 py-4">
+                                                <div class="relative" @click.stop>
+                                                    <button @click.stop="toggleViewFieldPPDropdown(fIdx)" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-left bg-white hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent flex items-center justify-between">
+                                                        <span v-if="field.permission_point" class="text-indigo-700">{{ field.permission_point }}</span>
+                                                        <span v-else class="text-slate-400">—</span>
+                                                        <i :class="['ph ph-caret-down text-xs text-slate-400 transition-transform', viewFieldPPDropdownIndex === fIdx ? 'rotate-180' : '']"></i>
+                                                    </button>
+                                                    <div v-if="viewFieldPPDropdownIndex === fIdx" @click.stop class="absolute left-0 right-0 top-full mt-1 z-50 max-h-80 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden flex flex-col">
+                                                        <div class="p-2 border-b border-slate-100">
+                                                            <input v-model="viewFieldPPSearchQuery" type="text" class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs" placeholder="搜索权限点..." />
+                                                        </div>
+                                                        <div class="p-2 flex-1 overflow-y-auto space-y-0.5">
+                                                            <div @click.stop="clearViewFieldPP(fIdx)" :class="['px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-indigo-50 flex items-center gap-2', !field.permission_point ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700']">
+                                                                <i class="ph ph-check text-xs" v-if="!field.permission_point"></i>
+                                                                <span class="w-4" v-else></span>
+                                                                <span>— 无 —</span>
+                                                            </div>
+                                                            <div v-if="!showViewFieldNewPPInput" @click.stop="startViewFieldNewPP" class="px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-indigo-50 flex items-center gap-2 text-indigo-600 border-t border-slate-100 mt-1 pt-2">
+                                                                <i class="ph ph-plus text-xs flex-shrink-0"></i>
+                                                                <span class="flex-1">新建权限点</span>
+                                                            </div>
+                                                            <div v-if="showViewFieldNewPPInput" class="px-2 py-1.5 flex items-center gap-2">
+                                                                <input v-model="viewFieldNewPPName" type="text" class="flex-1 px-2 py-1 border border-indigo-300 rounded text-xs focus:ring-2 focus:ring-indigo-500" placeholder="输入权限点名称..." @keyup.enter="confirmViewFieldNewPP(fIdx)" @keyup.esc="cancelViewFieldNewPP" />
+                                                                <button @click.stop="confirmViewFieldNewPP(fIdx)" class="p-1 text-indigo-600 hover:text-indigo-800"><i class="ph ph-check text-sm"></i></button>
+                                                                <button @click.stop="cancelViewFieldNewPP" class="p-1 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-sm"></i></button>
+                                                            </div>
+                                                            <div v-for="node in filteredWizardPermissionPointTree" :key="node.id" @click.stop="selectViewFieldPP(fIdx, node.name)" :class="['px-2 py-1.5 text-sm rounded cursor-pointer flex items-center gap-2', field.permission_point === node.name ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-indigo-50 text-slate-700']">
+                                                                <i class="ph ph-check text-xs flex-shrink-0" v-if="field.permission_point === node.name"></i>
+                                                                <span class="w-3" v-else></span>
+                                                                <span class="flex-1">{{ node.name }}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
                                         </tr>
                                         <tr v-if="!(form.viewFields && form.viewFields.length)">
-                                            <td colspan="3" class="px-6 py-12 text-center text-slate-400 italic text-sm">
+                                            <td colspan="4" class="px-6 py-12 text-center text-slate-400 italic text-sm">
                                                 请先在第一步执行查询以获取输出字段
                                             </td>
                                         </tr>
@@ -2022,12 +2616,13 @@ window.AppTemplates = {
                                                 <th class="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">名称</th>
                                                 <th class="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">类型</th>
                                                 <th class="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/3">字段中文化</th>
+                                                <th class="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">权限点</th>
                                                 <th class="px-6 py-4 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider">加密</th>
                                                 <th class="px-6 py-4 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider">分区</th>
                                             </tr>
                                         </thead>
                                         <tbody v-if="form.tableMetadata?.fields" class="divide-y divide-slate-100 bg-white">
-                                            <template v-for="field in form.tableMetadata.fields" :key="field.name">
+                                            <template v-for="(field, fIdx) in form.tableMetadata.fields" :key="field.name">
                                                 <tr class="hover:bg-slate-50/50 transition-colors">
                                                     <td class="px-6 py-4">
                                                         <div class="flex items-center gap-2">
@@ -2047,6 +2642,41 @@ window.AppTemplates = {
                                                             class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-300"
                                                             placeholder="编辑字段描述..." />
                                                     </td>
+                                                    <td class="px-6 py-4">
+                                                        <div class="relative" @click.stop>
+                                                            <button @click.stop="toggleOnlineFieldPPDropdown(fIdx)" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-left bg-white hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent flex items-center justify-between">
+                                                                <span v-if="field.permission_point" class="text-indigo-700">{{ field.permission_point }}</span>
+                                                                <span v-else class="text-slate-400">—</span>
+                                                                <i :class="['ph ph-caret-down text-xs text-slate-400 transition-transform', onlineFieldPPDropdownIndex === fIdx ? 'rotate-180' : '']"></i>
+                                                            </button>
+                                                            <div v-if="onlineFieldPPDropdownIndex === fIdx" @click.stop class="absolute left-0 right-0 top-full mt-1 z-50 max-h-80 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden flex flex-col">
+                                                                <div class="p-2 border-b border-slate-100">
+                                                                    <input v-model="onlineFieldPPSearchQuery" type="text" class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs" placeholder="搜索权限点..." />
+                                                                </div>
+                                                                <div class="p-2 flex-1 overflow-y-auto space-y-0.5">
+                                                                    <div @click.stop="clearOnlineFieldPP(fIdx)" :class="['px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-indigo-50 flex items-center gap-2', !field.permission_point ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700']">
+                                                                        <i class="ph ph-check text-xs" v-if="!field.permission_point"></i>
+                                                                        <span class="w-4" v-else></span>
+                                                                        <span>— 无 —</span>
+                                                                    </div>
+                                                                    <div v-if="!showOnlineFieldNewPPInput" @click.stop="startOnlineFieldNewPP" class="px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-indigo-50 flex items-center gap-2 text-indigo-600 border-t border-slate-100 mt-1 pt-2">
+                                                                        <i class="ph ph-plus text-xs flex-shrink-0"></i>
+                                                                        <span class="flex-1">新建权限点</span>
+                                                                    </div>
+                                                                    <div v-if="showOnlineFieldNewPPInput" class="px-2 py-1.5 flex items-center gap-2">
+                                                                        <input v-model="onlineFieldNewPPName" type="text" class="flex-1 px-2 py-1 border border-indigo-300 rounded text-xs focus:ring-2 focus:ring-indigo-500" placeholder="输入权限点名称..." @keyup.enter="confirmOnlineFieldNewPP(fIdx)" @keyup.esc="cancelOnlineFieldNewPP" />
+                                                                        <button @click.stop="confirmOnlineFieldNewPP(fIdx)" class="p-1 text-indigo-600 hover:text-indigo-800"><i class="ph ph-check text-sm"></i></button>
+                                                                        <button @click.stop="cancelOnlineFieldNewPP" class="p-1 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-sm"></i></button>
+                                                                    </div>
+                                                                    <div v-for="node in filteredWizardPermissionPointTree" :key="node.id" @click.stop="selectOnlineFieldPP(fIdx, node.name)" :class="['px-2 py-1.5 text-sm rounded cursor-pointer flex items-center gap-2', field.permission_point === node.name ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-indigo-50 text-slate-700']">
+                                                                        <i class="ph ph-check text-xs flex-shrink-0" v-if="field.permission_point === node.name"></i>
+                                                                        <span class="w-3" v-else></span>
+                                                                        <span class="flex-1">{{ node.name }}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
                                                     <td class="px-6 py-4 text-center">
                                                         <input type="checkbox" 
                                                             :checked="field.isEncrypted"
@@ -2061,7 +2691,7 @@ window.AppTemplates = {
                                                 </tr>
                                                 <!-- Inline Encryption Config -->
                                                 <tr v-if="field.isEncrypted" :key="field.name + '_config'" class="bg-rose-50/20">
-                                                    <td colspan="5" class="px-6 py-5 border-l-4 border-rose-400">
+                                                    <td colspan="6" class="px-6 py-5 border-l-4 border-rose-400">
                                                         <div class="space-y-4">
                                                             <div class="flex items-center justify-between">
                                                                 <div class="text-[11px] font-bold text-rose-600 flex items-center gap-2">
@@ -2133,6 +2763,7 @@ window.AppTemplates = {
                                                 <th class="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">类型</th>
                                                 <th class="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">长度</th>
                                                 <th class="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">描述</th>
+                                                <th class="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">权限点</th>
                                                 <th class="px-4 py-3 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider">加密</th>
                                             </tr>
                                         </thead>
@@ -2174,6 +2805,41 @@ window.AppTemplates = {
                                                             class="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
                                                             placeholder="添加字段描述" />
                                                     </td>
+                                                    <td class="px-4 py-3">
+                                                        <div class="relative" @click.stop>
+                                                            <button @click.stop="toggleExcelFieldPPDropdown(idx)" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-left bg-white hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent flex items-center justify-between">
+                                                                <span v-if="field.permission_point" class="text-indigo-700">{{ field.permission_point }}</span>
+                                                                <span v-else class="text-slate-400">—</span>
+                                                                <i :class="['ph ph-caret-down text-xs text-slate-400 transition-transform', excelFieldPPDropdownIndex === idx ? 'rotate-180' : '']"></i>
+                                                            </button>
+                                                            <div v-if="excelFieldPPDropdownIndex === idx" @click.stop class="absolute left-0 right-0 top-full mt-1 z-50 max-h-80 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden flex flex-col">
+                                                                <div class="p-2 border-b border-slate-100">
+                                                                    <input v-model="excelFieldPPSearchQuery" type="text" class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs" placeholder="搜索权限点..." />
+                                                                </div>
+                                                                <div class="p-2 flex-1 overflow-y-auto space-y-0.5">
+                                                                    <div @click.stop="clearExcelFieldPP(idx)" :class="['px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-indigo-50 flex items-center gap-2', !field.permission_point ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700']">
+                                                                        <i class="ph ph-check text-xs" v-if="!field.permission_point"></i>
+                                                                        <span class="w-4" v-else></span>
+                                                                        <span>— 无 —</span>
+                                                                    </div>
+                                                                    <div v-if="!showExcelFieldNewPPInput" @click.stop="startExcelFieldNewPP" class="px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-indigo-50 flex items-center gap-2 text-indigo-600 border-t border-slate-100 mt-1 pt-2">
+                                                                        <i class="ph ph-plus text-xs flex-shrink-0"></i>
+                                                                        <span class="flex-1">新建权限点</span>
+                                                                    </div>
+                                                                    <div v-if="showExcelFieldNewPPInput" class="px-2 py-1.5 flex items-center gap-2">
+                                                                        <input v-model="excelFieldNewPPName" type="text" class="flex-1 px-2 py-1 border border-indigo-300 rounded text-xs focus:ring-2 focus:ring-indigo-500" placeholder="输入权限点名称..." @keyup.enter="confirmExcelFieldNewPP(idx)" @keyup.esc="cancelExcelFieldNewPP" />
+                                                                        <button @click.stop="confirmExcelFieldNewPP(idx)" class="p-1 text-indigo-600 hover:text-indigo-800"><i class="ph ph-check text-sm"></i></button>
+                                                                        <button @click.stop="cancelExcelFieldNewPP" class="p-1 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-sm"></i></button>
+                                                                    </div>
+                                                                    <div v-for="node in filteredWizardPermissionPointTree" :key="node.id" @click.stop="selectExcelFieldPP(idx, node.name)" :class="['px-2 py-1.5 text-sm rounded cursor-pointer flex items-center gap-2', field.permission_point === node.name ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-indigo-50 text-slate-700']">
+                                                                        <i class="ph ph-check text-xs flex-shrink-0" v-if="field.permission_point === node.name"></i>
+                                                                        <span class="w-3" v-else></span>
+                                                                        <span class="flex-1">{{ node.name }}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
                                                     <td class="px-4 py-3 text-center">
                                                         <input type="checkbox" 
                                                             :checked="field.isEncrypted"
@@ -2183,7 +2849,7 @@ window.AppTemplates = {
                                                 </tr>
                                                 <!-- Inline Encryption Config for EXCEL -->
                                                 <tr v-if="field.isEncrypted" :key="'excel_'+idx+'_config'" class="bg-rose-50/20">
-                                                    <td colspan="5" class="px-4 py-4 border-l-4 border-rose-400">
+                                                    <td colspan="6" class="px-4 py-4 border-l-4 border-rose-400">
                                                         <div class="space-y-4">
                                                             <div class="flex items-center justify-between">
                                                                 <div class="text-[11px] font-bold text-rose-600 flex items-center gap-2">
@@ -2992,3 +3658,18 @@ window.AppTemplates = {
             </div>
     `
 };
+
+// 异步加载 PermissionCenter / CategoryManagement 模板
+(function() {
+    function loadTemplate(key, path) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', path + '?v=' + Date.now(), false);
+        xhr.send();
+        if (xhr.status === 200) {
+            window.AppTemplates[key] = xhr.responseText;
+        }
+    }
+    loadTemplate('PermissionCenter', './js/templates/PermissionCenter.html');
+    loadTemplate('CategoryManagement', './js/templates/CategoryManagement.html');
+    loadTemplate('FieldEditModal', './js/templates/FieldEditModal.html');
+})();

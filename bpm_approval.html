@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审批详情 - 流程中心</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif; background: #F8F9FA; color: #1F2329; font-size: 14px; min-height: 100vh; }
+
+  /* ── Top Nav ── */
+  .top-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 64px; background: #fff; border-bottom: 1px solid #EBEDF0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+  }
+  .nav-left { display: flex; align-items: center; gap: 16px; }
+  .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .nav-logo-icon { width: 32px; height: 32px; background: #FF4500; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .nav-logo-icon svg { width: 20px; height: 20px; }
+  .nav-logo-text { font-size: 16px; font-weight: 600; color: #1F2329; }
+  .nav-search {
+    width: 320px; height: 36px; border: 1px solid #EBEDf0; border-radius: 4px;
+    display: flex; align-items: center; padding: 0 12px; gap: 8px;
+    background: #fff; color: #95999E; cursor: text;
+  }
+  .nav-search i { font-size: 16px; }
+  .nav-search-text { font-size: 14px; flex: 1; }
+  .nav-search-kbd { font-size: 11px; background: #F5F6F7; border: 1px solid #E0E2E5; border-radius: 3px; padding: 0 4px; color: #95999E; }
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+  .nav-icon-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; color: #95999E; font-size: 20px; transition: background 0.15s; }
+  .nav-icon-btn:hover { background: #F5F6F7; }
+
+  /* ── Page Layout ── */
+  .page-wrap { padding: 76px 16px 80px; max-width: 1200px; margin: 0 auto; }
+
+  /* ── Info Card ── */
+  .info-card {
+    background: #fff; border-radius: 8px; border: 1px solid #F0F2F5;
+    padding: 32px; margin-bottom: 12px;
+  }
+
+  /* card top */
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .card-top-left { flex: 1; }
+  .card-title { font-size: 20px; font-weight: 500; color: #1F2329; line-height: 28px; margin-bottom: 8px; }
+  .status-badge {
+    display: inline-flex; align-items: center;
+    background: rgba(51,126,255,0.12); color: #0C63FA;
+    border-radius: 2px; padding: 2px 8px; font-size: 14px; font-weight: 500;
+  }
+  .status-badge.approved { background: rgba(0,180,42,0.10); color: #00B42A; }
+  .status-badge.rejected { background: rgba(245,63,63,0.10); color: #F53F3F; }
+  .card-top-right {
+    background: #F5F6F7; border-radius: 4px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    font-size: 14px; color: #1F2329; white-space: nowrap;
+  }
+  .card-top-right i { font-size: 16px; color: #0C63FA; }
+
+  /* applicant row */
+  .card-applicant { display: flex; align-items: center; gap: 0; margin-top: 20px; flex-wrap: wrap; }
+  .applicant-avatar {
+    width: 24px; height: 24px; border-radius: 50%; background: #E8EFFF;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #0C63FA; flex-shrink: 0; overflow: hidden;
+  }
+  .applicant-name { font-size: 14px; color: #95999E; margin-left: 8px; }
+  .divider-v { display: inline-block; width: 1px; height: 12px; background: rgba(0,0,0,0.06); margin: 0 8px; vertical-align: middle; }
+  .applicant-meta { font-size: 14px; color: #95999E; }
+  .copy-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; color: #95999E; cursor: pointer; margin-left: 8px; }
+  .copy-btn:hover { color: #0C63FA; }
+  .copy-btn i { font-size: 16px; }
+
+  /* ── Approval Guidance Card ★ NEW ── */
+  .approval-guide-card {
+    background: #F0F6FF; border-radius: 8px; border: 1px solid #D4E4FF;
+    padding: 20px 24px; margin-bottom: 12px;
+    border-left: 4px solid #0C63FA;
+    position: relative;
+  }
+  .guide-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  .guide-icon {
+    width: 32px; height: 32px; border-radius: 50%; background: #0C63FA;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px; flex-shrink: 0;
+  }
+  .guide-role-text { font-size: 16px; font-weight: 500; color: #1F2329; }
+  .guide-role-name { color: #0C63FA; font-weight: 600; }
+  .guide-node-tag {
+    display: inline-flex; align-items: center;
+    background: rgba(12,99,250,0.10); color: #0C63FA;
+    border-radius: 2px; padding: 1px 8px; font-size: 12px; font-weight: 500;
+    margin-left: 8px;
+  }
+  .guide-duties { margin-bottom: 14px; }
+  .guide-duties-title { font-size: 13px; font-weight: 500; color: #95999E; margin-bottom: 8px; }
+  .guide-duty-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 14px; color: #1F2329; line-height: 1.6; margin-bottom: 4px;
+  }
+  .guide-duty-bullet {
+    width: 5px; height: 5px; border-radius: 50%; background: #0C63FA;
+    flex-shrink: 0; margin-top: 7px;
+  }
+  .guide-focus { border-top: 1px dashed #C8DBFF; padding-top: 14px; }
+  .guide-focus-title {
+    font-size: 13px; font-weight: 600; color: #0C63FA; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .guide-focus-title i { font-size: 14px; }
+  .guide-focus-text {
+    font-size: 14px; color: #1F2329; line-height: 1.8;
+  }
+  .guide-focus-text .focus-keyword {
+    color: #0C63FA; font-weight: 500;
+  }
+
+  /* ── Section Card ── */
+  .section-card { background: #fff; border-radius: 8px; border: 1px solid #F0F2F5; padding: 24px 32px; margin-bottom: 12px; position: relative; }
+
+  /* ★ focus highlight */
+  .section-card.focus-highlight {
+    border-left: 3px solid #FF7D00;
+    box-shadow: 0 0 0 1px rgba(255,125,0,0.08);
+  }
+  .focus-badge {
+    position: absolute; top: 12px; right: 16px;
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(255,125,0,0.08); color: #FF7D00;
+    border-radius: 2px; padding: 2px 8px; font-size: 12px; font-weight: 500;
+  }
+  .focus-badge i { font-size: 12px; }
+
+  .section-title { font-size: 16px; font-weight: 500; color: #333; margin-bottom: 24px; }
+
+  /* field grid */
+  .field-grid { display: flex; flex-wrap: wrap; row-gap: 16px; margin: 0 -5px; }
+  .field-item { padding: 0 5px; }
+  .field-item-w4 { width: 33.33%; }
+  .field-item-w3 { width: 25%; }
+  .field-item-w5 { width: 41.67%; }
+  .field-item-full { width: 100%; }
+  .field-label { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 4px; }
+  .field-value { font-size: 14px; color: #666; line-height: 1.6; }
+  .field-value.mono { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 13px; }
+
+  /* role badge */
+  .role-badge { display: inline-flex; align-items: center; gap: 6px; }
+  .sensitivity-tag { display: inline-block; border-radius: 2px; font-size: 12px; font-weight: 500; padding: 1px 6px; }
+  .sensitivity-basic { background: rgba(0,180,42,0.1); color: #00B42A; }
+  .sensitivity-sensitive { background: rgba(255,125,0,0.1); color: #FF7D00; }
+  .sensitivity-high { background: rgba(245,63,63,0.1); color: #F53F3F; }
+  .sensitivity-extreme { background: rgba(245,63,63,0.15); color: #CB2634; font-weight: 600; }
+
+  /* ── field level tags (C2/C3/C4) ── */
+  .field-level-tag {
+    display: inline-block; border-radius: 2px; font-size: 11px; font-weight: 500;
+    padding: 0px 4px; margin-left: 4px; vertical-align: middle;
+  }
+  .field-level-c2 { background: rgba(0,180,42,0.08); color: #00B42A; }
+  .field-level-c3 { background: rgba(255,125,0,0.08); color: #FF7D00; }
+  .field-level-c4 { background: rgba(245,63,63,0.10); color: #F53F3F; }
+
+  /* ── Role Detail Card (标准角色) ★ ── */
+  .role-detail-card {
+    border: 1px solid #E0E2E5; border-radius: 6px; overflow: hidden;
+    margin-bottom: 16px; background: #FAFBFC;
+  }
+  .role-detail-card-focus {
+    border-left: 3px solid #FF7D00; background: rgba(255,125,0,0.02);
+  }
+  .role-detail-header {
+    padding: 14px 16px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #F0F2F5;
+  }
+  .role-detail-name {
+    font-size: 16px; font-weight: 600; color: #1F2329;
+  }
+  .role-detail-desc {
+    padding: 10px 16px; font-size: 13px; color: #95999E; line-height: 1.5;
+    border-bottom: 1px solid #F0F2F5;
+  }
+
+
+  /* ── Row Perm Section ★ ── */
+  .row-perm-section {
+    border: 1px solid #F0F2F5; border-radius: 4px; padding: 16px;
+  }
+  .row-perm-section.focus-highlight {
+    border-left: 3px solid #FF7D00;
+    background: rgba(255,125,0,0.02);
+  }
+
+  /* ── Field Category Group ★ NEW ── */
+  .field-category-group {
+    margin-bottom: 12px; border: 1px solid #F0F2F5; border-radius: 4px; overflow: hidden;
+  }
+  .field-category-header {
+    background: #FAFBFC; padding: 8px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
+  }
+  .field-category-header:hover { background: #F5F6F7; }
+  .field-category-name { font-size: 13px; font-weight: 500; color: #1F2329; }
+  .field-category-count { font-size: 12px; color: #95999E; }
+  .field-category-toggle { font-size: 14px; color: #95999E; transition: transform 0.2s; }
+  .field-category-toggle.expanded { transform: rotate(90deg); }
+  .field-category-body { padding: 8px 12px; border-top: 1px solid #F0F2F5; }
+  .field-category-body .tag-list { margin-bottom: 0; }
+  .field-category-highlight { border-color: rgba(255,125,0,0.3); }
+  .field-category-highlight .field-category-header { background: rgba(255,125,0,0.04); }
+
+  /* table card */
+  .table-perm-card { border: 1px solid #F0F2F5; border-radius: 4px; overflow: hidden; margin-bottom: 12px; position: relative; }
+  .table-perm-card.focus-highlight {
+    border-left: 3px solid #FF7D00;
+  }
+  .table-perm-header { background: #F8F9FA; padding: 10px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #F0F2F5; }
+  .table-perm-header i { color: #95999E; font-size: 14px; }
+  .table-name { font-size: 14px; font-weight: 500; color: #1F2329; }
+  .table-cn-name { font-size: 12px; color: #95999E; }
+  .table-perm-body { padding: 12px 16px; }
+  .perm-section-label { font-size: 12px; color: #95999E; margin-bottom: 8px; font-weight: 500; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tag-blue { background: #EEF4FF; color: #0C63FA; border: 1px solid #C8DBFF; border-radius: 3px; padding: 2px 8px; font-size: 12px; font-family: monospace; }
+  .tag-green { background: #E8F7EE; color: #00B42A; border: 1px solid #AADFB8; border-radius: 10px; padding: 2px 10px; font-size: 12px; }
+  .tag-empty { color: #95999E; font-size: 13px; font-style: italic; }
+
+  /* row filter dimension groups ★ NEW */
+  .row-filter-group { margin-bottom: 8px; }
+  .row-filter-dim {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 13px; line-height: 1.6; margin-bottom: 4px;
+  }
+  .row-filter-dim-label {
+    color: #95999E; font-weight: 500; white-space: nowrap; min-width: 64px;
+    flex-shrink: 0;
+  }
+  .row-filter-dim-values { display: flex; flex-wrap: wrap; gap: 4px; }
+  .row-filter-dim-val {
+    background: #E8F7EE; color: #00B42A; border: 1px solid #AADFB8;
+    border-radius: 10px; padding: 1px 10px; font-size: 12px;
+  }
+  .row-filter-full-scope {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(245,63,63,0.08); color: #F53F3F; border: 1px solid rgba(245,63,63,0.2);
+    border-radius: 10px; padding: 1px 10px; font-size: 12px; font-weight: 500;
+  }
+  .row-filter-full-scope i { font-size: 12px; }
+
+  /* ── Bottom Action Bar ── */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    height: 64px; background: #fff; border-top: 1px solid #F0F2F5;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px;
+  }
+  .bar-left { display: flex; align-items: center; gap: 4px; }
+  .bar-btn {
+    height: 36px; border-radius: 4px; padding: 0 15px; font-size: 14px;
+    border: 1px solid transparent; cursor: pointer; display: inline-flex;
+    align-items: center; gap: 6px; background: transparent; color: #1F2329;
+    transition: background 0.15s;
+  }
+  .bar-btn:hover { background: #F5F6F7; }
+  .bar-btn i { font-size: 16px; }
+  .bar-right { display: flex; align-items: center; gap: 12px; }
+  .bar-skip { font-size: 14px; color: #95999E; display: flex; align-items: center; gap: 4px; }
+  .bar-skip a { color: #0C63FA; text-decoration: none; display: flex; align-items: center; gap: 2px; }
+  .bar-divider { width: 1px; height: 24px; background: #F0F2F5; }
+  .btn-reject {
+    height: 36px; border: 1px solid rgba(31,35,41,0.12); border-radius: 4px;
+    padding: 0 15px; font-size: 14px; color: #1F2329; background: #fff;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .btn-reject:hover { border-color: rgba(31,35,41,0.3); }
+  .btn-approve {
+    height: 36px; border: 1px solid #0C63FA; border-radius: 4px;
+    padding: 0 15px; min-width: 88px; font-size: 14px;
+    color: #fff; background: #0C63FA; cursor: pointer; transition: background 0.15s;
+  }
+  .btn-approve:hover { background: #0A55D6; }
+
+  /* back link */
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: #95999E; font-size: 14px; cursor: pointer; margin-bottom: 12px; text-decoration: none; }
+  .back-link:hover { color: #0C63FA; }
+
+  /* approve modal overlay */
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .modal-box { background: #fff; border-radius: 8px; padding: 24px; width: 420px; box-shadow: 0 6px 16px rgba(0,0,0,0.08), 0 3px 6px rgba(0,0,0,0.12); }
+  .modal-title { font-size: 16px; font-weight: 500; color: #1F2329; margin-bottom: 16px; }
+  .modal-textarea { width: 100%; border: 1px solid #E0E2E5; border-radius: 4px; padding: 8px 12px; font-size: 14px; color: #1F2329; resize: vertical; min-height: 80px; outline: none; font-family: inherit; }
+  .modal-textarea:focus { border-color: #0C63FA; box-shadow: 0 0 0 2px rgba(12,99,250,0.1); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .modal-cancel { height: 32px; border: 1px solid rgba(31,35,41,0.12); border-radius: 4px; padding: 0 15px; font-size: 14px; color: #1F2329; background: #fff; cursor: pointer; }
+  .modal-confirm { height: 32px; border: 1px solid #0C63FA; border-radius: 4px; padding: 0 15px; font-size: 14px; color: #fff; background: #0C63FA; cursor: pointer; }
+  .modal-confirm.danger { background: #F53F3F; border-color: #F53F3F; }
+
+  /* role selector for mock ★ NEW */
+  .role-selector {
+    position: fixed; top: 72px; right: 20px; z-index: 150;
+    background: #fff; border-radius: 6px; border: 1px solid #E0E2E5;
+    padding: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    font-size: 12px; color: #95999E;
+  }
+  .role-selector-label { font-weight: 500; margin-bottom: 6px; }
+  .role-selector select {
+    width: 180px; height: 30px; border: 1px solid #E0E2E5; border-radius: 4px;
+    padding: 0 8px; font-size: 12px; color: #1F2329; outline: none;
+    background: #fff; cursor: pointer;
+  }
+  .role-selector select:focus { border-color: #0C63FA; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Top Nav -->
+  <nav class="top-nav">
+    <div class="nav-left">
+      <a class="nav-logo" href="javascript:void(0)">
+        <div class="nav-logo-icon">
+          <svg viewBox="0 0 24 24" fill="white"><path d="M6 4v16l10-5.33V9.33L6 4z"/><circle cx="18" cy="7" r="3" fill="white" opacity="0.8"/></svg>
+        </div>
+        <span class="nav-logo-text">流程中心</span>
+      </a>
+      <div class="nav-search">
+        <i class="ph ph-magnifying-glass"></i>
+        <span class="nav-search-text">搜索</span>
+        <span class="nav-search-kbd">⌘K</span>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="nav-icon-btn" title="意见反馈"><i class="ph ph-chat-text"></i></div>
+      <div class="nav-icon-btn" title="通知"><i class="ph ph-bell"></i></div>
+      <div class="nav-icon-btn" title="用户"><i class="ph ph-user-circle"></i></div>
+    </div>
+  </nav>
+
+  <!-- ★ Mock Role Selector (for demo only) -->
+  <div class="role-selector" v-if="record">
+    <div class="role-selector-label">切换审批人视角（Mock）</div>
+    <select v-model="currentRole">
+      <option v-for="(cfg, key) in ROLE_CONFIG" :key="key" :value="key">{{ cfg.name }} — {{ cfg.nodeType }}</option>
+    </select>
+  </div>
+
+  <div class="page-wrap" v-if="record">
+    <!-- Back -->
+    <a class="back-link" @click="goBack"><i class="ph ph-arrow-left"></i>返回待审批列表</a>
+
+    <!-- Main Info Card -->
+    <div class="info-card">
+      <div class="card-top">
+        <div class="card-top-left">
+          <div class="card-title">数据权限申请 · {{ record.domainName }}</div>
+          <span :class="['status-badge', record.myApprovalStatus === 'approved' ? 'approved' : record.myApprovalStatus === 'rejected' ? 'rejected' : '']">
+            {{ approvalStatusLabel(record.myApprovalStatus) }}
+          </span>
+        </div>
+        <div class="card-top-right">
+          <i class="ph ph-clock"></i>
+          {{ roleConfig.nodeType }}
+        </div>
+      </div>
+
+      <!-- Applicant row -->
+      <div class="card-applicant">
+        <div class="applicant-avatar">{{ record.applicantName.slice(0,1) }}</div>
+        <span class="applicant-name">{{ record.applicantName }}</span>
+        <span class="divider-v"></span>
+        <span class="applicant-meta">{{ record.applicantDept || '—' }}</span>
+        <span class="divider-v"></span>
+        <span class="applicant-meta">{{ record.appliedAt }}</span>
+        <span class="copy-btn" @click="copyId" title="复制单号"><i class="ph ph-copy"></i>复制单号</span>
+      </div>
+    </div>
+
+    <!-- ★ 审批指引卡 -->
+    <div class="approval-guide-card" v-if="roleConfig">
+      <div class="guide-header">
+        <div class="guide-icon"><i class="ph ph-shield-check"></i></div>
+        <div class="guide-role-text">
+          您是本单据的 <span class="guide-role-name">{{ roleConfig.name }}</span> 审批人
+          <span class="guide-node-tag">{{ roleConfig.nodeType }}</span>
+        </div>
+      </div>
+      <div class="guide-duties">
+        <div class="guide-duties-title">审批职责</div>
+        <div v-for="(duty, di) in roleConfig.duties" :key="di" class="guide-duty-item">
+          <div class="guide-duty-bullet"></div>
+          <span>{{ duty }}</span>
+        </div>
+      </div>
+      <div class="guide-focus">
+        <div class="guide-focus-title"><i class="ph ph-eye"></i> 重点审核</div>
+        <div class="guide-focus-text">
+          <div v-for="(fc, fci) in roleConfig.focusSections" :key="fc.key">
+            {{ fci + 1 }}. 请关注 <span class="focus-keyword" @click="scrollToSection(fc.key)" style="cursor:pointer;">{{ fc.label }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 申请信息 Section -->
+    <div :id="'applicant_info'" :class="['section-card', isFocused('applicant_info') ? 'focus-highlight' : '']">
+      <span v-if="isFocused('applicant_info')" class="focus-badge"><i class="ph ph-eye"></i> 重点关注</span>
+      <div class="section-title">申请信息</div>
+      <div class="field-grid">
+        <div :class="['field-item', isFocused('applicant_info') ? 'field-item-w4' : 'field-item-w4']">
+          <div class="field-label">申请人</div>
+          <div class="field-value">{{ record.applicantName }}（{{ record.applicantId }}）</div>
+        </div>
+        <div class="field-item field-item-w4">
+          <div class="field-label">所属部门</div>
+          <div class="field-value">{{ record.applicantDept || '—' }}</div>
+        </div>
+        <div class="field-item field-item-w4">
+          <div class="field-label">授权方式</div>
+          <div class="field-value">{{ authTypeLabel(record.type) }}</div>
+        </div>
+        <div class="field-item field-item-w4">
+          <div class="field-label">权限有效期</div>
+          <div class="field-value">{{ record.validityDays }} 天（截止 {{ record.expireAt }}）</div>
+        </div>
+        <div class="field-item field-item-w4">
+          <div class="field-label">数据域</div>
+          <div class="field-value">{{ record.domainName }}</div>
+        </div>
+        <!-- 角色名称 -->
+        <div v-if="record.type === 'standard' || record.type === 'copy'" class="field-item field-item-w4">
+          <div class="field-label">角色名称</div>
+          <div class="field-value">
+            <span class="role-badge">
+              {{ record.roleNames || record.roleName }}
+              <span :class="['sensitivity-tag', sensitivityClass(record.sensitivityLevel)]">{{ sensitivityLabel(record.sensitivityLevel) }}</span>
+            </span>
+          </div>
+        </div>
+        <!-- 复制来源 -->
+        <div v-if="record.type === 'copy'" class="field-item field-item-w4">
+          <div class="field-label">复制来源</div>
+          <div class="field-value">{{ record.copyUserName || '—' }}</div>
+        </div>
+        <!-- 申请理由 -->
+        <div v-if="record.reason" class="field-item field-item-full">
+          <div class="field-label">申请理由</div>
+          <div class="field-value">{{ record.reason }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 权限明细 Section: 标准角色/复制 → 角色名称 + 行权限 -->
+    <div v-if="record.type === 'standard' || record.type === 'copy'"
+         :id="'perm_detail'"
+         :class="['section-card', isFocused('perm_detail') ? 'focus-highlight' : '']">
+      <span v-if="isFocused('perm_detail')" class="focus-badge"><i class="ph ph-eye"></i> 重点关注</span>
+      <div class="section-title">权限明细</div>
+
+      <!-- ★ 角色名称区块（始终凸显） -->
+      <div class="role-detail-card" :class="{ 'role-detail-card-focus': roleFocusDetail.focusRole }">
+        <div class="role-detail-header">
+          <i class="ph ph-shield-star" style="color: #0C63FA;"></i>
+          <span class="role-detail-name">{{ record.roleNames || record.roleName }}</span>
+          <span :class="['sensitivity-tag', sensitivityClass(record.sensitivityLevel)]">{{ sensitivityLabel(record.sensitivityLevel) }}</span>
+        </div>
+        <div v-if="record.roleDescription" class="role-detail-desc">{{ record.roleDescription }}</div>
+      </div>
+
+      <!-- 行权限（不展示表名，直接展示行权限） -->
+      <div :class="['row-perm-section', roleFocusDetail.focusRow ? 'focus-highlight' : '']">
+        <div class="perm-section-label" style="font-size: 14px; font-weight: 500; color: #1F2329; margin-bottom: 12px;"><i class="ph ph-funnel" style="margin-right: 4px; color: #0C63FA;"></i>行权限范围</div>
+        <template v-for="t in record.tables" :key="t.tableId">
+          <div v-if="t.rowFilterGroups && t.rowFilterGroups.length > 0" class="row-filter-group">
+            <div v-for="rg in t.rowFilterGroups" :key="rg.dimension" class="row-filter-dim">
+              <span class="row-filter-dim-label">{{ rg.dimension }}：</span>
+              <div class="row-filter-dim-values">
+                <span v-if="rg.isFullScope" class="row-filter-full-scope"><i class="ph ph-globe-hemisphere-west"></i>全公司范围</span>
+                <template v-else>
+                  <span v-for="v in rg.values" :key="v" class="row-filter-dim-val">{{ v }}</span>
+                </template>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="t.rowFilters && t.rowFilters.length > 0" class="row-filter-group">
+            <div v-for="(f,fi) in t.rowFilters" :key="fi" class="row-filter-dim">
+              <div class="row-filter-dim-values">
+                <span class="row-filter-dim-val">
+                  <template v-if="f.label">{{ f.label }}</template>
+                  <template v-else>{{ f.field }} {{ f.operator }} {{ f.value }}</template>
+                </span>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div v-if="!record.tables.some(t => (t.rowFilterGroups && t.rowFilterGroups.length > 0) || (t.rowFilters && t.rowFilters.length > 0))" class="tag-empty">无行限制（全量数据）</div>
+      </div>
+    </div>
+
+    <!-- 权限明细 Section: 按表授权 → 表+字段+行权限 -->
+    <div v-if="record.type === 'custom'"
+         :id="'perm_detail'"
+         :class="['section-card', isFocused('perm_detail') ? 'focus-highlight' : '']">
+      <span v-if="isFocused('perm_detail')" class="focus-badge"><i class="ph ph-eye"></i> 重点关注</span>
+      <div class="section-title">申请表与权限明细</div>
+      <div v-for="t in record.tables" :key="t.tableId"
+           :class="['table-perm-card', isFocused('perm_detail') && hasFocusFields(t) ? 'focus-highlight' : '']">
+        <div class="table-perm-header">
+          <i class="ph ph-table"></i>
+          <span class="table-name">{{ t.tableName }}</span>
+          <span class="table-cn-name">{{ t.chineseName }}</span>
+        </div>
+        <div class="table-perm-body">
+          <!-- 列权限：按分类聚合 ★ -->
+          <div class="perm-section-label">列权限</div>
+          <template v-if="t.fieldCategories && t.fieldCategories.length > 0">
+            <div v-for="cat in t.fieldCategories" :key="cat.name"
+                 :class="['field-category-group', isCategoryFocused(cat) ? 'field-category-highlight' : '']">
+              <div class="field-category-header" @click="toggleCategory(cat)">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="field-category-name">{{ cat.name }}</span>
+                  <span :class="['sensitivity-tag', cat.highestLevel === 'C4' ? 'sensitivity-extreme' : cat.highestLevel === 'C3' ? 'sensitivity-high' : 'sensitivity-basic']">{{ cat.highestLevel }}</span>
+                  <span class="field-category-count">{{ cat.fields.length }} 个字段</span>
+                </div>
+                <i :class="['ph ph-caret-right', 'field-category-toggle', cat.expanded ? 'expanded' : '']"></i>
+              </div>
+              <div v-if="cat.expanded" class="field-category-body">
+                <div class="tag-list">
+                  <span v-for="f in cat.fields" :key="f.name" class="tag-blue">
+                    {{ f.label || f.name }}
+                    <span :class="['field-level-tag', fieldLevelClass(f.level)]">{{ f.level }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="t.fields && t.fields.length > 0">
+            <div class="tag-list">
+              <span v-for="f in t.fields" :key="f" class="tag-blue">{{ f }}</span>
+            </div>
+          </template>
+          <span v-else class="tag-green"><i class="ph ph-check-circle" style="margin-right:4px;"></i>全部字段</span>
+
+          <!-- 行权限：按维度分组 ★ -->
+          <div class="perm-section-label" style="margin-top:16px;">行权限</div>
+          <div v-if="t.rowFilterGroups && t.rowFilterGroups.length > 0" class="row-filter-group">
+            <div v-for="rg in t.rowFilterGroups" :key="rg.dimension" class="row-filter-dim">
+              <span class="row-filter-dim-label">{{ rg.dimension }}：</span>
+              <div class="row-filter-dim-values">
+                <span v-if="rg.isFullScope" class="row-filter-full-scope"><i class="ph ph-globe-hemisphere-west"></i>全公司范围</span>
+                <template v-else>
+                  <span v-for="v in rg.values" :key="v" class="row-filter-dim-val">{{ v }}</span>
+                </template>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="t.rowFilters && t.rowFilters.length > 0" class="row-filter-group">
+            <div v-for="(f,fi) in t.rowFilters" :key="fi" class="row-filter-dim">
+              <div class="row-filter-dim-values">
+                <span class="row-filter-dim-val">
+                  <template v-if="f.label">{{ f.label }}</template>
+                  <template v-else>{{ f.field }} {{ f.operator }} {{ f.value }}</template>
+                </span>
+              </div>
+            </div>
+          </div>
+          <span v-else class="tag-empty">无行限制（全量数据）</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 404 fallback -->
+  <div v-if="!record" class="page-wrap" style="padding-top:100px; text-align:center; color:#95999E;">
+    <i class="ph ph-warning" style="font-size:48px; margin-bottom:16px; display:block;"></i>
+    <div style="font-size:16px; margin-bottom:8px;">申请记录不存在</div>
+    <a class="back-link" @click="goBack" style="justify-content:center;">返回列表</a>
+  </div>
+
+  <!-- Bottom Action Bar -->
+  <div class="bottom-bar" v-if="record">
+    <div class="bar-left">
+      <button class="bar-btn"><i class="ph ph-chats"></i>建群讨论</button>
+      <button class="bar-btn"><i class="ph ph-star"></i>关注</button>
+      <button class="bar-btn"><i class="ph ph-question"></i>征询</button>
+      <button class="bar-btn"><i class="ph ph-megaphone"></i>知会</button>
+    </div>
+    <div class="bar-right">
+      <span class="bar-skip">待审批列表，<a href="javascript:void(0)" @click="goBack">返回列表 <i class="ph ph-arrow-left" style="font-size:12px;"></i></a></span>
+      <div class="bar-divider"></div>
+      <button class="btn-reject" @click="showRejectModal = true" :disabled="record.myApprovalStatus !== 'pending'">拒绝</button>
+      <button class="btn-approve" @click="showApproveModal = true" :disabled="record.myApprovalStatus !== 'pending'">同意</button>
+    </div>
+  </div>
+
+  <!-- Approve Modal -->
+  <div class="modal-mask" v-if="showApproveModal" @click.self="showApproveModal=false">
+    <div class="modal-box">
+      <div class="modal-title">同意申请</div>
+      <textarea class="modal-textarea" v-model="approveComment" placeholder="审批意见（选填）"></textarea>
+      <div class="modal-footer">
+        <button class="modal-cancel" @click="showApproveModal=false">取消</button>
+        <button class="modal-confirm" @click="doApprove">确认同意</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reject Modal -->
+  <div class="modal-mask" v-if="showRejectModal" @click.self="showRejectModal=false">
+    <div class="modal-box">
+      <div class="modal-title">拒绝申请</div>
+      <textarea class="modal-textarea" v-model="rejectComment" placeholder="请输入拒绝原因（必填）"></textarea>
+      <div class="modal-footer">
+        <button class="modal-cancel" @click="showRejectModal=false">取消</button>
+        <button class="modal-confirm danger" @click="doReject">确认拒绝</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── ★ 审批角色职责配置 ──
+const ROLE_CONFIG = {
+  direct_leader: {
+    name: '直接上级',
+    nodeType: '初审',
+    duties: [
+      '确认申请人具体工作内容与所申请权限的必要性',
+      '对申请人的权限使用和数据安全负责'
+    ],
+    focusSections: [
+      { key: 'applicant_info', label: '申请人信息与申请理由' },
+      { key: 'perm_detail', label: '权限范围与行权限配置' }
+    ]
+  },
+  perm_admin: {
+    name: '权限管理员',
+    nodeType: '初审',
+    duties: [
+      '确认申请人部门、员工性质及岗位与申请权限是否匹配',
+      '确认申请人表单填写是否正确（特殊情况会跟上级/BP确认）'
+    ],
+    focusSections: [
+      { key: 'applicant_info', label: '申请人部门、岗位与表单完整性' },
+      { key: 'perm_detail', label: '权限明细配置' }
+    ]
+  },
+  dept_head: {
+    name: '数据领域负责人',
+    nodeType: '复审·列权限',
+    duties: [
+      '审核敏感/高敏字段权限范围是否合理',
+      '确认授权范围与业务需求匹配'
+    ],
+    focusSections: [
+      { key: 'perm_detail', label: '角色名称与敏感等级' },
+      { key: 'perm_detail', label: '字段分类与权限范围' }
+    ]
+  },
+  org_bph: {
+    name: '组织BPH',
+    nodeType: '复审·行权限',
+    duties: [
+      '确认申请人是否为本事业部的HRBP/COEBO',
+      '审核行权限范围是否合理'
+    ],
+    focusSections: [
+      { key: 'perm_detail', label: '行权限范围配置' }
+    ]
+  },
+  l5_head: {
+    name: '人力线L5负责人',
+    nodeType: '复审·极高敏',
+    duties: [
+      '审核涉及极高敏字段的授权合理性'
+    ],
+    focusSections: [
+      { key: 'perm_detail', label: '极高敏（C4）字段详情' }
+    ]
+  },
+  coe_head: {
+    name: 'COE负责人',
+    nodeType: '加签·条件',
+    duties: [
+      '审核C3/C4字段授权合理性',
+      '审核全公司范围某类信息的授权合理性'
+    ],
+    focusSections: [
+      { key: 'perm_detail', label: 'C3/C4高敏字段' }
+    ]
+  }
+};
+
+// ── Mock data ──
+const MOCK_APPROVALS = [
+  // approval_001: 按标准角色 - OD基础
+  {
+    id: 'approval_001', applicantName: '张浩', applicantId: 'user_002',
+    applicantDept: '产品部/用户增长中心', applicantJobTitle: 'HRBP',
+    type: 'standard', roleName: 'OD-基础', roleNames: 'OD-基础',
+    roleDescription: '覆盖员工基础信息、组织架构等字段',
+    sensitivityLevel: 'basic', domainName: 'HR人力资源域',
+    tables: [
+      { tableId: 'tbl_hr_emp_all', tableName: 'topic_hr_emp_all_td', chineseName: '员工全量信息表',
+        rowFilterGroups: [
+          { dimension: '所在组织', values: ['商业化事业部', '增长事业部'], isFullScope: false },
+          { dimension: '职级', values: ['P6', 'P7'], isFullScope: false }
+        ],
+        rowFilters: [],
+        fieldCategories: [
+          { name: '基础信息', highestLevel: 'C2', expanded: true, fields: [
+            { name: 'emp_id', label: '员工ID', level: 'C2' },
+            { name: 'emp_name', label: '员工姓名', level: 'C2' },
+            { name: 'dept', label: '所属部门', level: 'C2' },
+            { name: 'level', label: '职级', level: 'C2' }
+          ]},
+          { name: '组织信息', highestLevel: 'C2', expanded: false, fields: [
+            { name: 'org_id', label: '组织ID', level: 'C2' },
+            { name: 'org_name', label: '组织名称', level: 'C2' },
+            { name: 'org_path', label: '组织路径', level: 'C2' }
+          ]}
+        ]
+      },
+      { tableId: 'tbl_hr_ltc_emp', tableName: 'dim_hr_ltc_emp_cp', chineseName: '员工快照维度表',
+        rowFilterGroups: [
+          { dimension: '所在组织', values: ['商业化事业部'], isFullScope: false }
+        ],
+        rowFilters: [],
+        fieldCategories: [
+          { name: '基础信息', highestLevel: 'C2', expanded: true, fields: [
+            { name: 'emp_id', label: '员工ID', level: 'C2' },
+            { name: 'snapshot_date', label: '快照日期', level: 'C2' }
+          ]}
+        ]
+      }
+    ],
+    validityDays: 90, expireAt: '2026-09-01', reason: '用于OD人员组织分析项目',
+    appliedAt: '2026-06-01', bpmProcessId: 'bpm_20260601_005',
+    myApprovalStatus: 'pending', myApprovalRole: 'direct_leader'
+  },
+  // approval_002: 按标准角色 - 敏感
+  {
+    id: 'approval_002', applicantName: '李伟', applicantId: 'user_003',
+    applicantDept: '技术部/数据平台', applicantJobTitle: '数据分析师',
+    type: 'standard', roleName: 'OD-敏感-绩效信息-低职级', roleNames: 'OD-敏感-绩效信息-低职级',
+    roleDescription: '覆盖绩效评估结果、绩效等级等敏感字段（限低职级范围）',
+    sensitivityLevel: 'sensitive', domainName: 'HR人力资源域',
+    tables: [
+      { tableId: 'tbl_hr_emp_all', tableName: 'topic_hr_emp_all_td', chineseName: '员工全量信息表',
+        rowFilterGroups: [
+          { dimension: '职级', values: ['P4', 'P5', 'P6'], isFullScope: false },
+          { dimension: '在职状态', values: ['在职'], isFullScope: false }
+        ],
+        rowFilters: [],
+        fieldCategories: [
+          { name: '基础信息', highestLevel: 'C2', expanded: false, fields: [
+            { name: 'emp_id', label: '员工ID', level: 'C2' },
+            { name: 'emp_name', label: '员工姓名', level: 'C2' }
+          ]},
+          { name: '绩效信息', highestLevel: 'C3', expanded: true, fields: [
+            { name: 'perf_rating', label: '绩效等级', level: 'C3' },
+            { name: 'perf_score', label: '绩效分数', level: 'C3' },
+            { name: 'perf_review', label: '绩效评语', level: 'C3' }
+          ]}
+        ]
+      }
+    ],
+    validityDays: 30, expireAt: '2026-07-14', reason: '季度绩效分析',
+    appliedAt: '2026-06-14', bpmProcessId: 'bpm_20260614_007',
+    myApprovalStatus: 'approved', myApprovalRole: 'dept_head'
+  },
+  // approval_003: 按标准角色 - 高敏
+  {
+    id: 'approval_003', applicantName: '王飞', applicantId: 'user_004',
+    applicantDept: '运营部/增长运营', applicantJobTitle: '运营经理',
+    type: 'standard', roleName: 'OD-敏感-薪酬信息-低职级', roleNames: 'OD-敏感-薪酬信息-低职级',
+    roleDescription: '覆盖薪酬结构、补贴等高敏字段（限低职级范围）',
+    sensitivityLevel: 'high_sensitive', domainName: 'HR人力资源域',
+    tables: [
+      { tableId: 'tbl_hr_emp_all', tableName: 'topic_hr_emp_all_td', chineseName: '员工全量信息表',
+        rowFilterGroups: [
+          { dimension: '职级', values: ['P4', 'P5', 'P6'], isFullScope: false }
+        ],
+        rowFilters: [],
+        fieldCategories: [
+          { name: '基础信息', highestLevel: 'C2', expanded: false, fields: [
+            { name: 'emp_id', label: '员工ID', level: 'C2' },
+            { name: 'emp_name', label: '员工姓名', level: 'C2' }
+          ]},
+          { name: '薪酬信息', highestLevel: 'C4', expanded: true, fields: [
+            { name: 'base_salary', label: '基本薪资', level: 'C4' },
+            { name: 'bonus', label: '奖金', level: 'C4' },
+            { name: 'allowance', label: '补贴', level: 'C3' },
+            { name: 'stock', label: '期权', level: 'C4' }
+          ]}
+        ]
+      }
+    ],
+    validityDays: 180, expireAt: '2026-12-10', reason: '薪酬结构分析项目',
+    appliedAt: '2026-06-10', bpmProcessId: 'bpm_20260610_008',
+    myApprovalStatus: 'rejected', myApprovalRole: 'l5_head'
+  },
+  // approval_004: 按表申请 - 含高敏字段 + 行权限
+  {
+    id: 'approval_004', applicantName: '孙丽', applicantId: 'user_005',
+    applicantDept: '数据工程部/数据中台', applicantJobTitle: '数据工程师',
+    type: 'custom', roleName: '', roleNames: '',
+    roleDescription: '', sensitivityLevel: 'high_sensitive', domainName: 'HR人力资源域',
+    tables: [
+      { tableId: 'tbl_hr_emp_all', tableName: 'topic_hr_emp_all_td', chineseName: '员工全量信息表',
+        fieldCategories: [
+          { name: '基础信息', highestLevel: 'C2', expanded: true, fields: [
+            { name: 'emp_id', label: '员工ID', level: 'C2' },
+            { name: 'emp_name', label: '员工姓名', level: 'C2' },
+            { name: 'dept', label: '所属部门', level: 'C2' },
+            { name: 'level', label: '职级', level: 'C2' }
+          ]},
+          { name: '组织信息', highestLevel: 'C2', expanded: false, fields: [
+            { name: 'org_id', label: '组织ID', level: 'C2' },
+            { name: 'org_name', label: '组织名称', level: 'C2' },
+            { name: 'org_path', label: '组织路径', level: 'C2' },
+            { name: 'org_type', label: '组织类型', level: 'C2' }
+          ]},
+          { name: '薪酬信息', highestLevel: 'C4', expanded: true, fields: [
+            { name: 'base_salary', label: '基本薪资', level: 'C4' },
+            { name: 'bonus', label: '奖金', level: 'C4' },
+            { name: 'allowance', label: '补贴', level: 'C3' }
+          ]},
+          { name: '绩效信息', highestLevel: 'C3', expanded: false, fields: [
+            { name: 'perf_rating', label: '绩效等级', level: 'C3' },
+            { name: 'perf_score', label: '绩效分数', level: 'C3' }
+          ]}
+        ],
+        fields: [],
+        rowFilterGroups: [
+          { dimension: '所在组织', values: ['技术部'], isFullScope: false },
+          { dimension: '职级', values: ['P5', 'P6', 'P7'], isFullScope: false },
+          { dimension: '在职状态', values: ['在职'], isFullScope: false }
+        ],
+        rowFilters: []
+      },
+      { tableId: 'tbl_hr_ltc_emp', tableName: 'dim_hr_ltc_emp_cp', chineseName: '员工快照维度表',
+        fieldCategories: [
+          { name: '基础信息', highestLevel: 'C2', expanded: true, fields: [
+            { name: 'emp_id', label: '员工ID', level: 'C2' },
+            { name: 'snapshot_date', label: '快照日期', level: 'C2' }
+          ]}
+        ],
+        fields: [],
+        rowFilterGroups: [],
+        rowFilters: []
+      }
+    ],
+    validityDays: 90, expireAt: '2026-09-15', reason: '自定义分析需求，需要技术部员工薪酬数据支撑人力成本测算',
+    appliedAt: '2026-06-15', bpmProcessId: 'bpm_20260615_009',
+    myApprovalStatus: 'pending', myApprovalRole: 'org_bph'
+  },
+  // approval_005: 复制他人权限
+  {
+    id: 'approval_005', applicantName: '赵六', applicantId: 'user_006',
+    applicantDept: '人力部/薪酬中心', applicantJobTitle: '薪酬BP',
+    type: 'copy', roleName: 'CB-COE + Payroll', roleNames: 'CB-COE, Payroll',
+    roleDescription: '复制自用户张三的权限',
+    sensitivityLevel: 'high_sensitive', domainName: 'HR人力资源域',
+    copyUserName: '张三',
+    tables: [
+      { tableId: 'tbl_hr_salary', tableName: 'topic_hr_salary_td', chineseName: '薪酬全量信息表',
+        rowFilterGroups: [
+          { dimension: '所在组织', values: ['全公司范围'], isFullScope: true }
+        ],
+        rowFilters: [],
+        fieldCategories: [
+          { name: '基础信息', highestLevel: 'C2', expanded: true, fields: [
+            { name: 'emp_id', label: '员工ID', level: 'C2' },
+            { name: 'emp_name', label: '员工姓名', level: 'C2' }
+          ]},
+          { name: '薪酬信息', highestLevel: 'C4', expanded: true, fields: [
+            { name: 'base_salary', label: '基本薪资', level: 'C4' },
+            { name: 'bonus', label: '奖金', level: 'C4' },
+            { name: 'stock', label: '期权', level: 'C4' },
+            { name: 'allowance', label: '补贴', level: 'C3' }
+          ]}
+        ]
+      }
+    ],
+    validityDays: 365, expireAt: '2027-06-10', reason: '接手张三离职后的薪酬分析工作',
+    appliedAt: '2026-06-10', bpmProcessId: 'bpm_20260610_012',
+    myApprovalStatus: 'pending', myApprovalRole: 'coe_head'
+  }
+];
+
+const { createApp, ref, computed } = Vue;
+createApp({
+  setup() {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const record = ref(id ? MOCK_APPROVALS.find(r => r.id === id) || null : MOCK_APPROVALS[3]);
+
+    // ★ 当前审批人角色（Mock可切换）
+    const currentRole = ref(record.value?.myApprovalRole || 'org_bph');
+
+    // ★ 角色配置
+    const roleConfig = computed(() => ROLE_CONFIG[currentRole.value] || null);
+
+    // ★ 聚焦区域keys
+    const focusKeys = computed(() => {
+      if (!roleConfig.value) return [];
+      return roleConfig.value.focusSections.map(f => f.key);
+    });
+
+    // ★ 是否某区域被聚焦
+    const isFocused = (key) => focusKeys.value.includes(key);
+
+    // ★ 根据当前角色判断具体聚焦内容
+    const roleFocusDetail = computed(() => {
+      const role = currentRole.value;
+      return {
+        focusRole: ['dept_head', 'l5_head', 'coe_head'].includes(role),
+        focusRow: ['org_bph', 'direct_leader', 'perm_admin'].includes(role),
+        focusC4: ['l5_head', 'coe_head'].includes(role),
+        focusC3C4: ['coe_head', 'dept_head'].includes(role),
+        focusFields: ['dept_head', 'l5_head', 'coe_head'].includes(role),
+      };
+    });
+
+    // ★ 判断表是否有聚焦字段（用于按表申请的卡片高亮）
+    const hasFocusFields = (table) => {
+      if (!table.fieldCategories) return false;
+      const d = roleFocusDetail.value;
+      if (d.focusFields) {
+        return table.fieldCategories.some(cat => {
+          if (d.focusC4 && cat.highestLevel === 'C4') return true;
+          if (d.focusC3C4 && (cat.highestLevel === 'C3' || cat.highestLevel === 'C4')) return true;
+          return d.focusFields;
+        });
+      }
+      if (d.focusRow && table.rowFilterGroups && table.rowFilterGroups.length > 0) {
+        return true;
+      }
+      return false;
+    };
+
+    // ★ 分类是否被聚焦
+    const isCategoryFocused = (category) => {
+      const d = roleFocusDetail.value;
+      if (d.focusC4 && category.highestLevel === 'C4') return true;
+      if (d.focusC3C4 && (category.highestLevel === 'C3' || category.highestLevel === 'C4')) return true;
+      if (d.focusFields) return true;
+      return false;
+    };
+
+    // ★ 展开/收起分类
+    const toggleCategory = (cat) => { cat.expanded = !cat.expanded; };
+
+    // ★ 滚动到对应section
+    const scrollToSection = (key) => {
+      let el = document.getElementById(key);
+      if (!el) el = document.getElementById('perm_detail'); // fallback
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    const showApproveModal = ref(false);
+    const showRejectModal = ref(false);
+    const approveComment = ref('');
+    const rejectComment = ref('');
+
+    const approvalStatusLabel = (s) => ({ pending: '审批中', approved: '已通过', rejected: '已拒绝' }[s] || s);
+    const authTypeLabel = (t) => ({ standard: '按标准角色授权', custom: '按表授权', copy: '复制他人权限' }[t] || t);
+    const sensitivityLabel = (s) => ({ basic: '基础', sensitive: '敏感', high_sensitive: '高敏', extreme: '极高敏' }[s] || s);
+    const sensitivityClass = (s) => ({ basic: 'sensitivity-basic', sensitive: 'sensitivity-sensitive', high_sensitive: 'sensitivity-high', extreme: 'sensitivity-extreme' }[s] || '');
+    const fieldLevelClass = (l) => ({ C2: 'field-level-c2', C3: 'field-level-c3', C4: 'field-level-c4' }[l] || '');
+
+    const goBack = () => {
+      if (window.history.length > 1 && document.referrer) window.history.back();
+      else window.close();
+    };
+
+    const copyId = () => {
+      if (!record.value) return;
+      navigator.clipboard?.writeText(record.value.bpmProcessId).catch(()=>{});
+      alert('单号已复制：' + record.value.bpmProcessId);
+    };
+
+    const doApprove = () => {
+      if (!record.value) return;
+      record.value.myApprovalStatus = 'approved';
+      showApproveModal.value = false;
+      approveComment.value = '';
+    };
+
+    const doReject = () => {
+      if (!rejectComment.value.trim()) { alert('请填写拒绝原因'); return; }
+      if (!record.value) return;
+      record.value.myApprovalStatus = 'rejected';
+      showRejectModal.value = false;
+      rejectComment.value = '';
+    };
+
+    return {
+      record, currentRole, roleConfig, ROLE_CONFIG, roleFocusDetail,
+      isFocused, hasFocusFields, isCategoryFocused, toggleCategory, scrollToSection,
+      showApproveModal, showRejectModal, approveComment, rejectComment,
+      approvalStatusLabel, authTypeLabel, sensitivityLabel, sensitivityClass, fieldLevelClass,
+      goBack, copyId, doApprove, doReject
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

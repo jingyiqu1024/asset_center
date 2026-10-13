@@ -573,23 +573,107 @@
 </head>
 
 <body class="bg-slate-50 text-slate-800 h-screen overflow-hidden">
-    <div id="app" class="flex h-full font-sans antialiased">
+    <div id="app" class="flex flex-col h-full font-sans antialiased">
 
-        <!-- SIDEBAR: Catalog Tree -->
-        <aside class="w-72 bg-white text-slate-700 flex flex-col border-r border-slate-200 flex-shrink-0">
-            <!-- Sidebar Header: System Name -->
-            <div class="h-14 border-b border-slate-200 flex items-center px-4 gap-3 bg-white shrink-0">
-                <div
-                    class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white shadow-sm overflow-hidden flex-shrink-0">
+        <!-- ===== GLOBAL TOP HEADER ===== -->
+        <header class="h-14 bg-white border-b border-slate-200 flex-shrink-0 flex items-center px-5 gap-4 z-30">
+            <!-- Left: Logo + Product Name -->
+            <div class="flex items-center gap-2.5 w-64 flex-shrink-0">
+                <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white shadow-sm flex-shrink-0">
                     <i class="ph ph-tree-structure text-lg"></i>
                 </div>
-                <h1 class="font-bold text-slate-800 tracking-wide text-base truncate">资源中心</h1>
+                <h1 class="font-bold text-slate-800 text-base tracking-wide whitespace-nowrap">资源管理中心</h1>
             </div>
 
+            <!-- Center: Global Search Bar -->
+            <div class="relative flex-1 max-w-2xl mx-auto">
+                <div class="relative">
+                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input v-model="searchQuery" @focus="showSearchDropdown = true"
+                        @blur="setTimeout(() => showSearchDropdown = false, 200)" type="text"
+                        placeholder="输入资源名称搜索"
+                        class="w-full pl-10 pr-20 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-slate-50">
+                    <kbd class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-xs text-slate-400 bg-white border border-slate-200 rounded font-mono">⌘K</kbd>
+                </div>
+
+                <!-- Search Dropdown -->
+                <div v-show="showSearchDropdown && searchQuery.trim()"
+                    class="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-slate-200 z-50 max-h-96 overflow-hidden flex flex-col">
+                    <!-- Tabs -->
+                    <div class="flex items-center gap-1 px-3 py-2 border-b border-slate-200 bg-slate-50">
+                        <button @click="searchActiveTab = 'ALL'"
+                            :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'ALL' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                            全部
+                        </button>
+                        <button @click="searchActiveTab = 'CATALOG'"
+                            :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'CATALOG' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                            文件夹
+                        </button>
+                        <button @click="searchActiveTab = 'DATA_ASSET'"
+                            :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DATA_ASSET' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                            结构化数据
+                        </button>
+                        <button @click="searchActiveTab = 'DOCUMENT'"
+                            :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DOCUMENT' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                            文档
+                        </button>
+                        <button @click="searchActiveTab = 'FUNCTION'"
+                            :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'FUNCTION' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                            函数
+                        </button>
+                        <button @click="searchActiveTab = 'DICTIONARY'"
+                            :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DICTIONARY' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
+                            字典
+                        </button>
+                    </div>
+                    <!-- Results -->
+                    <div class="overflow-y-auto max-h-80">
+                        <div v-if="searchResults.length === 0" class="px-4 py-8 text-center text-slate-400 text-sm">
+                            <i class="ph ph-magnifying-glass text-3xl mb-2 block"></i>
+                            未找到匹配的资源
+                        </div>
+                        <button v-for="result in searchResults" :key="result.id" @click="selectNode(result)"
+                            class="w-full px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3 text-left border-b border-slate-100 last:border-b-0">
+                            <div :class="['w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', getBgColor(result)]">
+                                <i :class="['ph text-lg', getNodeIcon(result), getColor(result)]"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium text-slate-900 truncate">{{ result.name }}</p>
+                                <p class="text-xs text-slate-500">{{ result.type === 'CATALOG' ? '文件夹' : getTypeLabel(result) }}</p>
+                            </div>
+                            <i class="ph ph-arrow-right text-slate-400"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Actions + User Avatar -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <!-- Bot Button (hidden) -->
+                <!-- Permission Center -->
+                <a href="permission_center.html" title="权限中心"
+                    class="flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors border border-slate-200">
+                    <i class="ph ph-shield-check text-lg"></i>
+                </a>
+                <!-- User Avatar -->
+                <div class="relative">
+                    <button class="w-9 h-9 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm hover:bg-indigo-600 transition-colors">
+                        YZ
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ===== BODY: Sidebar + Main ===== -->
+        <div class="flex flex-1 overflow-hidden">
+
+        <!-- SIDEBAR: Catalog Tree -->
+        <aside class="w-64 bg-white text-slate-700 flex flex-col border-r border-slate-200 flex-shrink-0">
             <!-- Tree Navigation -->
-            <div class="flex-1 overflow-y-auto py-4 px-2">
-                <div class="flex items-center justify-between px-2 mb-3">
-                    <div class="text-xs font-bold text-slate-600 uppercase tracking-wider">资源目录</div>
+            <div class="flex-1 overflow-y-auto py-3 px-2">
+                <!-- 目录树标题行 -->
+                <div class="flex items-center justify-between px-2 mb-2">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">资源目录</div>
                     <div class="relative">
                         <button @click.stop="showCreateMenu = !showCreateMenu"
                             class="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors">
@@ -632,100 +716,41 @@
                         </div>
                     </div>
                 </div>
+                <!-- 过滤控件：关键词搜索 + 资源类型 -->
+                <div class="px-2 mb-2 space-y-1.5">
+                    <!-- 关键词搜索 -->
+                    <div class="relative">
+                        <i class="ph ph-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input v-model="sidebarSearchQuery" type="text"
+                            placeholder="搜索资源名称..."
+                            class="w-full pl-8 pr-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                        <button v-if="sidebarSearchQuery" @click="sidebarSearchQuery = ''" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <i class="ph ph-x text-xs"></i>
+                        </button>
+                    </div>
+                    <!-- 资源类型下拉 -->
+                    <div class="flex items-center gap-1.5">
+                        <i class="ph ph-funnel text-slate-400 text-xs"></i>
+                        <select v-model="sidebarTypeFilter" class="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <option value="ALL">全部类型</option>
+                            <option value="DATA_ASSET">结构化数据</option>
+                            <option value="DICTIONARY">字典</option>
+                            <option value="DOCUMENT">文档</option>
+                            <option value="FUNCTION">函数</option>
+                            <option value="SKILL">SKILL</option>
+                            <option value="PAGE_CARD">页面卡片</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- 目录树 -->
                 <tree-item v-for="node in catalogTree" :key="node.id" :node="node" :selected-id="selectedNode?.id"
+                    :type-filter="sidebarTypeFilter" :search-query="sidebarSearchQuery"
                     @select="selectNode" @rename="handleRenameNode"></tree-item>
-            </div>
-
-            <div class="p-4 border-t border-slate-800 shrink-0">
-                <button
-                    class="flex items-center gap-3 w-full px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors">
-                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-                        <span class="font-bold text-xs text-white">YZ</span>
-                    </div>
-                    <div class="text-left">
-                        <p class="text-white font-medium">Yuzhiyuan</p>
-                        <p class="text-xs text-slate-500">管理员</p>
-                    </div>
-                </button>
             </div>
         </aside>
 
         <!-- MAIN CONTENT -->
-        <main class="flex-1 flex flex-col h-full overflow-hidden bg-white relative transition-all duration-300" :style="showBotDrawer ? 'margin-right:400px' : ''">
-            <!-- Top Bar: Global Search -->
-            <div
-                class="h-14 border-b border-slate-200 flex-shrink-0 bg-white px-6 flex items-center justify-center gap-4">
-                <!-- Center: Global Search Bar -->
-                <div class="relative flex-1 max-w-2xl px-4">
-                    <div class="relative">
-                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input v-model="searchQuery" @focus="showSearchDropdown = true"
-                            @blur="setTimeout(() => showSearchDropdown = false, 200)" type="text"
-                            placeholder="全局搜索资源..."
-                            class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-slate-50">
-                    </div>
-
-                    <!-- Search Dropdown -->
-                    <div v-show="showSearchDropdown && searchQuery.trim()"
-                        class="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-slate-200 z-50 max-h-96 overflow-hidden flex flex-col">
-                        <!-- Tabs -->
-                        <div class="flex items-center gap-1 px-3 py-2 border-b border-slate-200 bg-slate-50">
-                            <button @click="searchActiveTab = 'ALL'"
-                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'ALL' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
-                                全部
-                            </button>
-                            <button @click="searchActiveTab = 'CATALOG'"
-                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'CATALOG' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
-                                文件夹
-                            </button>
-                            <button @click="searchActiveTab = 'DATA_ASSET'"
-                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DATA_ASSET' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
-                                结构化数据
-                            </button>
-                            <button @click="searchActiveTab = 'DOCUMENT'"
-                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DOCUMENT' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
-                                文档
-                            </button>
-                            <button @click="searchActiveTab = 'FUNCTION'"
-                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'FUNCTION' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
-                                函数
-                            </button>
-                            <button @click="searchActiveTab = 'DICTIONARY'"
-                                :class="['px-3 py-1 text-xs font-medium rounded transition-colors', searchActiveTab === 'DICTIONARY' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-200']">
-                                字典
-                            </button>
-                        </div>
-
-                        <!-- Results -->
-                        <div class="overflow-y-auto max-h-80">
-                            <div v-if="searchResults.length === 0" class="px-4 py-8 text-center text-slate-400 text-sm">
-                                <i class="ph ph-magnifying-glass text-3xl mb-2 block"></i>
-                                未找到匹配的资源
-                            </div>
-                            <button v-for="result in searchResults" :key="result.id" @click="selectNode(result)"
-                                class="w-full px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3 text-left border-b border-slate-100 last:border-b-0">
-                                <div
-                                    :class="['w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', getBgColor(result)]">
-                                    <i :class="['ph text-lg', getNodeIcon(result), getColor(result)]"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <p class="font-medium text-slate-900 truncate">{{ result.name }}</p>
-                                    <p class="text-xs text-slate-500">{{ result.type === 'CATALOG' ? '文件夹' :
-                                        getTypeLabel(result) }}</p>
-                                </div>
-                                <i class="ph ph-arrow-right text-slate-400"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <!-- Right: Bot Entry Button -->
-                <button @click="showBotDrawer = !showBotDrawer"
-                    :class="['flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border transition-all flex-shrink-0', showBotDrawer ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'text-indigo-600 bg-indigo-50 border-indigo-200 hover:bg-indigo-100']">
-                    <i class="ph ph-robot text-lg"></i>
-                    <span>Bot</span>
-                </button>
-            </div>
-
+        <main class="flex-1 flex flex-col overflow-hidden bg-white relative transition-all duration-300" :style="showBotDrawer ? 'margin-right:400px' : ''">
             <!-- Header with Breadcrumb and Actions -->
             <header
                 class="h-14 border-b border-slate-200 flex-shrink-0 bg-slate-50 px-6 flex items-center justify-between gap-4">
@@ -926,6 +951,15 @@
                                 <i class="ph ph-tags mr-1.5"></i>
                                 治理标签
                             </button>
+                            <button v-if="isSecondaryDomainCatalog" @click="catalogActiveTab = 'categories'" :class="[
+                                    'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+                                    catalogActiveTab === 'categories' 
+                                        ? 'border-indigo-600 text-indigo-600' 
+                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                ]">
+                                <i class="ph ph-tree-structure mr-1.5"></i>
+                                分类管理
+                            </button>
                             <button @click="catalogActiveTab = 'rules'" :class="[
                                     'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
                                     catalogActiveTab === 'rules' 
@@ -933,7 +967,7 @@
                                         : 'border-transparent text-slate-600 hover:text-slate-900'
                                 ]">
                                 <i class="ph ph-shield-check mr-1.5"></i>
-                                数据访问规则
+                                访问控制
                             </button>
                             <button @click="catalogActiveTab = 'settings'" :class="[
                                     'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
@@ -1180,137 +1214,463 @@
                             <tag-collection :node="selectedNode"></tag-collection>
                         </div>
 
-                        <!-- 权限规则 Tab -->
-                        <div v-show="catalogActiveTab === 'rules'" class="h-full overflow-y-auto p-6">
-                            <div class="max-w-6xl mx-auto">
-                                <!-- Header -->
-                                <div class="mb-6 flex items-center justify-between">
-                                    <div>
-                                        <h2 class="text-lg font-semibold text-slate-900">全局规则</h2>
-                                        <p class="text-sm text-slate-500 mt-1">通过治理标签配置全局权限规则，可在结构化数据资产中引用</p>
-                                    </div>
-                                    <button @click="openGlobalRuleEdit(-1)"
-                                        class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
-                                        <i class="ph ph-plus"></i>
-                                        新建规则
-                                    </button>
-                                </div>
+                        <!-- 分类管理 Tab（仅二级业务域） -->
+                        <div v-show="catalogActiveTab === 'categories' && isSecondaryDomainCatalog" class="h-full">
+                            <category-management :node="selectedNode"></category-management>
+                        </div>
 
-                                <!-- Rules List -->
-                                <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
-                                    <table class="min-w-full">
-                                        <thead class="bg-slate-50 border-b border-slate-200">
-                                            <tr>
-                                                <th
-                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                                    规则名称</th>
-                                                <th
-                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                                    授权对象</th>
-                                                <th
-                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                                    关联标签</th>
-                                                <th
-                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                                    关联表</th>
-                                                <th
-                                                    class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                                    启用状态</th>
-                                                <th
-                                                    class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                                    操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-200">
-                                            <tr v-if="globalAuthRules.length === 0">
-                                                <td colspan="6" class="px-6 py-12 text-center text-slate-400">
-                                                    <i
-                                                        class="ph ph-shield-check text-4xl mb-2 block text-slate-300"></i>
-                                                    <p class="text-sm">暂无权限规则</p>
-                                                    <p class="text-xs mt-1">点击"新建规则"开始配置</p>
-                                                </td>
-                                            </tr>
-                                            <tr v-for="(rule, index) in globalAuthRules" :key="rule.id"
-                                                class="hover:bg-slate-50 transition-colors group">
-                                                <td class="px-6 py-4">
-                                                    <div class="flex items-center gap-2">
-                                                        <i class="ph ph-shield-check text-indigo-600"></i>
-                                                        <span class="text-sm font-medium text-slate-900">{{ rule.name
-                                                            }}</span>
-                                                    </div>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <span
-                                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700">
-                                                        {{ rule.targetAudience.type === 'role' ? '角色' : '用户组' }}: {{
-                                                        rule.targetAudience.value }}
-                                                    </span>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <div class="flex flex-wrap gap-1">
-                                                        <span v-for="tag in rule.tags" :key="tag"
-                                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-700 border border-amber-200">
-                                                            <i class="ph ph-tag mr-1"></i>
-                                                            {{ tag }}
+                        <!-- 访问控制 Tab -->
+                        <div v-show="catalogActiveTab === 'rules'" class="h-full flex flex-col">
+                            <!-- 子 Tab 栏 -->
+                            <div class="border-b border-slate-200 px-6 flex flex-shrink-0 bg-white">
+                                <button @click="rulesSubTab = 'column_permission_points'" :class="[
+                                        'px-5 py-3 text-sm font-medium border-b-2 transition-colors mr-1',
+                                        rulesSubTab === 'column_permission_points'
+                                            ? 'border-indigo-600 text-indigo-600'
+                                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                                    ]">
+                                    <i class="ph ph-key mr-1.5"></i>
+                                    列权限规则
+                                </button>
+                                <button @click="rulesSubTab = 'row_permission_rules'" :class="[
+                                        'px-5 py-3 text-sm font-medium border-b-2 transition-colors mr-1',
+                                        rulesSubTab === 'row_permission_rules'
+                                            ? 'border-indigo-600 text-indigo-600'
+                                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                                    ]">
+                                    <i class="ph ph-shield-check mr-1.5"></i>
+                                    行权限规则
+                                </button>
+                            </div>
+
+                            <!-- 子 Tab: 列权限规则 -->
+                            <div v-show="rulesSubTab === 'column_permission_points'" class="flex-1 overflow-y-auto p-6">
+                                <!-- ===== 列表视图 ===== -->
+                                <div v-if="!showColumnRuleModal" class="max-w-6xl mx-auto">
+                                    <!-- Header -->
+                                    <div class="mb-6 flex items-center justify-between">
+                                        <div>
+                                            <h2 class="text-lg font-semibold text-slate-900">列权限规则</h2>
+                                            <p class="text-sm text-slate-500 mt-1">管理列权限规则，控制字段级别的数据访问权限</p>
+                                        </div>
+                                        <button @click="openColumnRuleEdit(-1)"
+                                            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                                            <i class="ph ph-plus"></i>
+                                            新建规则
+                                        </button>
+                                    </div>
+
+                                    <!-- Rules Table -->
+                                    <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+                                        <table class="min-w-full">
+                                            <thead class="bg-slate-50 border-b border-slate-200">
+                                                <tr>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">规则名称</th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">规则描述</th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">敏感等级</th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">应用表数</th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">启用状态</th>
+                                                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-200">
+                                                <tr v-if="columnPermissionRules.length === 0">
+                                                    <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                                                        <i class="ph ph-shield-check text-4xl mb-2 block text-slate-300"></i>
+                                                        <p class="text-sm">暂无列权限规则</p>
+                                                        <p class="text-xs mt-1">点击"新建规则"开始配置</p>
+                                                    </td>
+                                                </tr>
+                                                <tr v-for="(rule, index) in columnPermissionRules" :key="rule.id"
+                                                    class="hover:bg-slate-50 transition-colors group">
+                                                    <td class="px-6 py-4">
+                                                        <div class="flex items-center">
+                                                            <span class="text-sm font-medium text-slate-900">{{ rule.name }}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <div class="max-w-[200px] truncate text-sm text-slate-500" :title="rule.description">
+                                                            {{ rule.description || '-' }}
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <span :class="['px-2 py-1 rounded-full text-xs font-medium', sensitivityLevelClass(rule.sensitivityLevel)]">
+                                                            {{ sensitivityLevelLabel(rule.sensitivityLevel) || '—' }}
                                                         </span>
-                                                    </div>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <div @mouseenter="showAppliedTables = rule.id"
-                                                        @mouseleave="showAppliedTables = null"
-                                                        class="relative inline-block">
-                                                        <span
-                                                            class="text-sm text-slate-600 cursor-pointer hover:text-indigo-600 border-b border-dashed border-slate-300">
-                                                            {{ rule.appliedTables?.length || 0 }} 个表
-                                                        </span>
-                                                        <!-- Popover -->
-                                                        <div v-if="showAppliedTables === rule.id && rule.appliedTables && rule.appliedTables.length > 0"
-                                                            class="absolute left-0 top-full mt-2 w-72 bg-white rounded-lg shadow-xl border border-slate-200 z-[100] p-3">
-                                                            <div class="text-xs font-semibold text-slate-700 mb-2">
-                                                                关联表：</div>
-                                                            <div class="space-y-1 max-h-48 overflow-y-auto">
-                                                                <div v-for="table in rule.appliedTables" :key="table.id"
-                                                                    class="px-2 py-1.5 text-xs text-slate-600 flex items-center gap-2 hover:bg-slate-50 rounded">
-                                                                    <i class="ph ph-table text-blue-600"></i>
-                                                                    <span class="flex-1">{{ table.name }}</span>
-                                                                    <span v-if="table.env === 'online'"
-                                                                        class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">ONLINE</span>
-                                                                    <span v-else-if="table.env === 'pre'"
-                                                                        class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200">PRE</span>
+                                                    </td>
+
+                                                    <td class="px-6 py-4">
+                                                        <div @mouseenter="showColRuleAppliedTables = rule.id"
+                                                            @mouseleave="showColRuleAppliedTables = null"
+                                                            class="relative inline-block">
+                                                            <span class="text-sm text-slate-600 cursor-pointer hover:text-indigo-600 border-b border-dashed border-slate-300">
+                                                                {{ rule.appliedTables ? rule.appliedTables.length : 0 }} 个表
+                                                            </span>
+                                                            <div v-if="showColRuleAppliedTables === rule.id && rule.appliedTables && rule.appliedTables.length > 0"
+                                                                class="absolute left-0 top-full mt-2 w-72 bg-white rounded-lg shadow-xl border border-slate-200 z-[100] p-3">
+                                                                <div class="text-xs font-semibold text-slate-700 mb-2">关联表：</div>
+                                                                <div class="space-y-1 max-h-48 overflow-y-auto">
+                                                                    <div v-for="table in rule.appliedTables" :key="table.id || table.name"
+                                                                        class="px-2 py-1.5 text-xs text-slate-600 flex items-center gap-2 hover:bg-slate-50 rounded">
+                                                                        <i class="ph ph-table text-blue-600"></i>
+                                                                        <span class="flex-1">{{ table.name }}</span>
+                                                                        <span v-if="table.env === 'online'" class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">ONLINE</span>
+                                                                        <span v-else-if="table.env === 'pre'" class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200">PRE</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <!-- 启用/禁用胶囊 -->
-                                                    <button @click="rule.enabled = !rule.enabled"
-                                                        class="px-2 py-1 rounded-full text-[10px] font-medium transition-all flex items-center inline-flex gap-1.5 border shadow-sm"
-                                                        :class="rule.enabled ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'">
-                                                        <div class="w-1.5 h-1.5 rounded-full"
-                                                            :class="rule.enabled ? 'bg-green-500 animate-pulse' : 'bg-slate-400'">
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <button @click="toggleColumnRuleEnabled(rule)"
+                                                            class="px-2 py-1 rounded-full text-[10px] font-medium transition-all flex items-center inline-flex gap-1.5 border shadow-sm"
+                                                            :class="rule.enabled ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'">
+                                                            <div class="w-1.5 h-1.5 rounded-full" :class="rule.enabled ? 'bg-green-500 animate-pulse' : 'bg-slate-400'"></div>
+                                                            {{ rule.enabled ? '已启用' : '已禁用' }}
+                                                        </button>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-right">
+                                                        <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button @click="openColumnRuleEdit(index)" class="text-slate-400 hover:text-indigo-600 transition-colors">
+                                                                <i class="ph ph-pencil-simple"></i>
+                                                            </button>
+                                                            <button @click="deleteColumnRuleDirect(index)" class="text-slate-400 hover:text-red-600 transition-colors">
+                                                                <i class="ph ph-trash"></i>
+                                                            </button>
                                                         </div>
-                                                        {{ rule.enabled ? '已启用' : '已禁用' }}
-                                                    </button>
-                                                </td>
-                                                <td class="px-6 py-4 text-right">
-                                                    <div
-                                                        class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button @click="openGlobalRuleEdit(index)"
-                                                            class="text-slate-400 hover:text-indigo-600 transition-colors">
-                                                            <i class="ph ph-pencil-simple"></i>
-                                                        </button>
-                                                        <button @click="deleteGlobalRule(index)"
-                                                            class="text-slate-400 hover:text-red-600 transition-colors">
-                                                            <i class="ph ph-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
 
+                                <!-- ===== 编辑/新建页面视图 ===== -->
+                                <div v-if="showColumnRuleModal" class="max-w-6xl mx-auto">
+                                    <!-- 顶部导航栏 -->
+                                    <div class="mb-6 flex items-center gap-3">
+                                        <button @click="closeColumnRuleEdit" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition-colors">
+                                            <i class="ph ph-arrow-left text-base"></i>
+                                            返回列表
+                                        </button>
+                                        <span class="text-slate-300">/</span>
+                                        <span class="text-sm font-medium text-slate-900">{{ editingColumnRuleIndex === -1 ? '新建列权限规则' : '编辑列权限规则' }}</span>
+                                    </div>
+
+                                    <!-- 单一表单区域 -->
+                                    <div @click="colRuleResourceTypeDropdownOpen = false" class="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
+                                        <!-- 列权限名称 -->
+                                        <div class="mb-5">
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">列权限名称 <span class="text-red-500">*</span></label>
+                                            <input v-model="editingColumnRule.name" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                                        </div>
+                                        <!-- 敏感等级 -->
+                                        <div class="mb-5">
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">敏感等级 <span class="text-red-500">*</span></label>
+                                            <select v-model="editingColumnRule.sensitivityLevel" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                                <option value="" disabled>请选择</option>
+                                                <option value="basic">基础</option>
+                                                <option value="sensitive">敏感</option>
+                                                <option value="high_sensitive">高敏</option>
+                                                <option value="top_sensitive">极高敏</option>
+                                            </select>
+                                        </div>
+                                        <!-- 描述 -->
+                                        <div class="mb-5">
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">描述</label>
+                                            <textarea v-model="editingColumnRule.description" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[80px]" placeholder="描述此列权限规则的适用场景"></textarea>
+                                        </div>
+                                        <!-- 分隔线 -->
+                                        <div class="border-t border-slate-200 my-6"></div>
+
+                                        <!-- 选择表与字段 -->
+                                        <div class="flex items-center justify-between mb-4">
+                                            <label class="block text-sm font-medium text-slate-700">选择表与字段</label>
+                                            <div class="flex items-center gap-3">
+                                                <div v-if="getTotalSelectedFieldCount() > 0" class="text-[11px] text-slate-500">
+                                                    已选择 <span class="text-indigo-600 font-bold">{{ getSelectedTableCount() }}</span> 个表，共 <span class="text-indigo-600 font-bold">{{ getTotalSelectedFieldCount() }}</span> 个字段
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <p class="text-xs text-slate-500 mb-4">先选择表，再在表详情中按「密级」或「字段分类」配置字段权限。</p>
+
+                                        <!-- 选表下拉 -->
+                                        <div class="relative mb-4" @click.stop>
+                                            <label class="block text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">选择表</label>
+                                            <div class="relative">
+                                                <input
+                                                    :value="colRuleTableSearch"
+                                                    @input="colRuleTableSearch = $event.target.value"
+                                                    @focus="colRuleTableSelectOpen = true"
+                                                    @blur="setTimeout(() => { colRuleTableSelectOpen = false; }, 150)"
+                                                    type="text"
+                                                    placeholder="搜索表名 / 中文名 / 路径"
+                                                    class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                                />
+                                                <i class="ph ph-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                            </div>
+                                            <div v-if="colRuleTableSelectOpen" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-72 overflow-y-auto">
+                                                <button
+                                                    v-for="table in colRuleFilteredTableOptions"
+                                                    :key="table.id"
+                                                    @mousedown.prevent="selectTableForColRule(table.id)"
+                                                    class="w-full px-3 py-2.5 text-left hover:bg-indigo-50 transition-colors border-b border-slate-100 last:border-b-0"
+                                                >
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <div class="min-w-0">
+                                                            <div class="text-sm font-medium text-slate-900 truncate">{{ table.chineseName || table.name }}</div>
+                                                            <div class="text-xs text-slate-400 truncate">{{ table.name }}</div>
+                                                            <div v-if="table.catalogPath" class="text-[11px] text-slate-300 truncate">{{ table.catalogPath }}</div>
+                                                        </div>
+                                                        <span v-if="editingColumnRule.tableFields && editingColumnRule.tableFields[table.id] && editingColumnRule.tableFields[table.id].length > 0" class="px-2 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[11px] font-medium whitespace-nowrap">
+                                                            已选 {{ editingColumnRule.tableFields[table.id].length }}
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                                <div v-if="colRuleFilteredTableOptions.length === 0" class="px-3 py-4 text-sm text-slate-400 text-center">无匹配表</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 已选表：手风琴展开收起 -->
+                                        <div v-if="selectedTablesForColRule.length > 0" class="mb-4 space-y-2">
+                                            <div v-for="table in selectedTablesForColRule" :key="table.id"
+                                                class="border rounded-xl overflow-hidden"
+                                                :class="colRuleSelectedTableId === table.id ? 'border-indigo-300' : 'border-slate-200'"
+                                            >
+                                                <!-- 表头行 -->
+                                                <div
+                                                    class="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
+                                                    :class="colRuleSelectedTableId === table.id ? 'bg-indigo-50' : 'bg-slate-50 hover:bg-slate-100'"
+                                                    @click="colRuleSelectedTableId = colRuleSelectedTableId === table.id ? null : table.id"
+                                                >
+                                                    <i :class="['ph ph-caret-right text-xs transition-transform', colRuleSelectedTableId === table.id ? 'rotate-90 text-indigo-500' : 'text-slate-400']"></i>
+                                                    <i class="ph ph-database text-slate-400 text-xs flex-shrink-0"></i>
+                                                    <span class="text-sm font-medium" :class="colRuleSelectedTableId === table.id ? 'text-indigo-700' : 'text-slate-800'">{{ table.chineseName || table.name }}</span>
+                                                    <span class="text-xs text-slate-400 font-mono">{{ table.name }}</span>
+                                                    <div class="ml-auto flex items-center gap-2">
+                                                        <span v-if="editingColumnRule.tableFields[table.id] && editingColumnRule.tableFields[table.id].length" class="text-xs px-1.5 py-0.5 rounded-full" :class="colRuleSelectedTableId === table.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'">已选 {{ editingColumnRule.tableFields[table.id].length }}</span>
+                                                        <button @click.stop="removeSelectedTableForColRule(table.id)" class="text-slate-300 hover:text-red-400 transition-colors">
+                                                            <i class="ph ph-x text-xs"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 字段配置区（展开时） -->
+                                                <div v-if="colRuleSelectedTableId === table.id" class="border-t border-slate-200 bg-white">
+                                                    <!-- 工具栏 -->
+                                                    <div class="px-3 py-2 border-b border-slate-100 flex items-center gap-2">
+                                                        <label class="flex items-center gap-1.5 cursor-pointer mr-2">
+                                                            <input type="checkbox"
+                                                                :checked="isTableFullyChecked(table)"
+                                                                :indeterminate.prop="isTableIndeterminate(table)"
+                                                                @change="toggleTableSelection(table)"
+                                                                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" />
+                                                            <span class="text-xs text-slate-600">全选</span>
+                                                        </label>
+                                                        <div class="flex items-center gap-1">
+                                                            <button @click="colRuleFieldGroupMode = 'classification'" :class="['px-2 py-1 rounded text-xs border transition-colors', colRuleFieldGroupMode === 'classification' ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-medium' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50']">按密级</button>
+                                                            <button @click="colRuleFieldGroupMode = 'permissionPoint'" :class="['px-2 py-1 rounded text-xs border transition-colors', colRuleFieldGroupMode === 'permissionPoint' ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-medium' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50']">按分类</button>
+                                                        </div>
+                                                        <div class="relative ml-auto w-44">
+                                                            <input
+                                                                :value="colRuleFieldSearchQueries[table.id] || ''"
+                                                                @input="colRuleFieldSearchQueries[table.id] = $event.target.value"
+                                                                type="text" placeholder="搜索字段"
+                                                                class="w-full pl-7 pr-2 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-indigo-400 focus:border-transparent"
+                                                            />
+                                                            <i class="ph ph-magnifying-glass absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- 分组 + 字段标签 -->
+                                                    <div class="p-3 space-y-2.5">
+                                                        <div v-for="group in getColRuleFieldGroups(table.id)" :key="group.key">
+                                                            <div class="flex items-center gap-1.5 mb-1.5">
+                                                                <label class="flex items-center gap-1 cursor-pointer">
+                                                                    <input type="checkbox"
+                                                                        :checked="isColRuleGroupFullyChecked(table.id, group.name)"
+                                                                        :indeterminate.prop="isColRuleGroupIndeterminate(table.id, group.name)"
+                                                                        @change="toggleColRuleGroupSelection(table.id, group.name)"
+                                                                        class="rounded border-slate-300 text-indigo-600 w-3 h-3" />
+                                                                </label>
+                                                                <span v-if="group.type === 'classification'" :class="[
+                                                                    'inline-block px-1.5 py-0.5 rounded text-[11px] font-bold',
+                                                                    group.name === 'C1' ? 'bg-slate-100 text-slate-500' :
+                                                                    group.name === 'C2' ? 'bg-blue-50 text-blue-600' :
+                                                                    group.name === 'C3' ? 'bg-amber-50 text-amber-700' :
+                                                                    group.name === 'C4' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-400'
+                                                                ]">{{ group.name }}</span>
+                                                                <span v-else class="text-xs font-medium text-slate-600">{{ group.name }}</span>
+                                                                <span class="text-[11px] text-slate-400">{{ group.fields.length }} 个</span>
+                                                            </div>
+                                                            <div class="flex flex-wrap gap-1.5 pl-4">
+                                                                <label v-for="field in group.fields" :key="field.name"
+                                                                    class="inline-flex items-center gap-1 px-2 py-1 rounded border text-xs cursor-pointer transition-all select-none"
+                                                                    :class="editingColumnRule.tableFields[table.id] && editingColumnRule.tableFields[table.id].includes(field.name)
+                                                                        ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'"
+                                                                >
+                                                                    <input type="checkbox"
+                                                                        :checked="editingColumnRule.tableFields[table.id] && editingColumnRule.tableFields[table.id].includes(field.name)"
+                                                                        @change="toggleFieldSelection(table.id, field.name)"
+                                                                        class="rounded border-slate-300 text-indigo-600 w-3 h-3 flex-shrink-0" />
+                                                                    <span class="font-medium">{{ field.chineseName || field.name }}</span>
+                                                                    <span class="text-[10px] opacity-40">{{ field.name }}</span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                        <div v-if="getColRuleFieldGroups(table.id).length === 0" class="py-4 text-center text-slate-400 text-xs">未找到匹配字段</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div v-else class="border border-dashed border-slate-200 rounded-xl py-10 text-center text-slate-400 bg-slate-50/50">
+                                            <i class="ph ph-table text-2xl mb-1.5 block text-slate-300"></i>
+                                            <p class="text-sm">请先从上方搜索添加表</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- 底部操作栏 -->
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <button v-if="editingColumnRuleIndex !== null && editingColumnRuleIndex !== -1" @click="deleteColumnRule(editingColumnRuleIndex)"
+                                                class="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm transition-colors flex items-center gap-1.5 font-medium">
+                                                <i class="ph ph-trash"></i> 删除规则
+                                            </button>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button @click="closeColumnRuleEdit" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm">取消</button>
+                                            <button @click="saveColumnRule"
+                                                class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm shadow-indigo-100 transition-all">
+                                                {{ editingColumnRuleIndex === -1 ? '保存' : '修改' }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 子 Tab: 行权限规则 -->
+                            <div v-show="rulesSubTab === 'row_permission_rules'" class="flex-1 overflow-y-auto p-6">
+                                <div class="max-w-6xl mx-auto">
+                                    <!-- Header -->
+                                    <div class="mb-6 flex items-center justify-between">
+                                        <div>
+                                            <h2 class="text-lg font-semibold text-slate-900">行权限规则</h2>
+                                            <p class="text-sm text-slate-500 mt-1">管理行权限规则，支持子查询和标签规则两种类型</p>
+                                        </div>
+                                        <button @click="openRowRuleEdit(-1)"
+                                            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                                            <i class="ph ph-plus"></i>
+                                            新建规则
+                                        </button>
+                                    </div>
+
+                                    <!-- Rules List -->
+                                    <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+                                        <table class="min-w-full">
+                                            <thead class="bg-slate-50 border-b border-slate-200">
+                                                <tr>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">规则名称</th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">规则类型</th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">预览</th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">应用表数</th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">启用状态</th>
+                                                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-200">
+                                                <tr v-if="mergedRowRules.length === 0">
+                                                    <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                                                        <i class="ph ph-shield-check text-4xl mb-2 block text-slate-300"></i>
+                                                        <p class="text-sm">暂无行权限规则</p>
+                                                        <p class="text-xs mt-1">点击"新建规则"开始配置</p>
+                                                    </td>
+                                                </tr>
+                                                <tr v-for="(rule, index) in mergedRowRules" :key="rule.id"
+                                                    class="hover:bg-slate-50 transition-colors group">
+                                                    <td class="px-6 py-4">
+                                                        <div class="flex items-center">
+                                                            <span class="text-sm font-medium text-slate-900">{{ rule.name }}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium"
+                                                            :class="rule.ruleType === 'subquery' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'">
+                                                            {{ rule.ruleType === 'subquery' ? '子查询' : '标签规则' }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <!-- 子查询类型：预览SQL语句 -->
+                                                        <template v-if="rule.ruleType === 'subquery'">
+                                                            <code class="text-xs text-slate-500 font-mono bg-slate-50 px-2 py-1 rounded border border-slate-200 max-w-xs truncate block">
+                                                                {{ rule.preview ? rule.preview.substring(0, 60) + (rule.preview.length > 60 ? '...' : '') : '-' }}
+                                                            </code>
+                                                        </template>
+                                                        <!-- 标签规则类型：展示标签条件 -->
+                                                        <template v-else>
+                                                            <div v-if="rule.previewIsConditions" class="space-y-1">
+                                                                <div v-for="(cond, ci) in rule.preview" :key="ci"
+                                                                    class="text-xs font-mono text-slate-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                                                    {{ cond }}
+                                                                </div>
+                                                                <span v-if="rule.preview.length === 0" class="text-xs text-slate-400">-</span>
+                                                            </div>
+                                                            <div v-else class="flex flex-wrap gap-1">
+                                                                <span v-for="tag in rule.preview" :key="tag"
+                                                                    class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-700 border border-amber-200">
+                                                                    <i class="ph ph-tag mr-1"></i>
+                                                                    {{ tag }}
+                                                                </span>
+                                                                <span v-if="rule.preview.length === 0" class="text-xs text-slate-400">-</span>
+                                                            </div>
+                                                        </template>
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <div @mouseenter="showAppliedTables = rule.id"
+                                                            @mouseleave="showAppliedTables = null"
+                                                            class="relative inline-block">
+                                                            <span class="text-sm text-slate-600 cursor-pointer hover:text-indigo-600 border-b border-dashed border-slate-300">
+                                                                {{ rule.appliedTableCount }} 个表
+                                                            </span>
+                                                            <div v-if="showAppliedTables === rule.id && rule.appliedTableList && rule.appliedTableList.length > 0"
+                                                                class="absolute left-0 top-full mt-2 w-72 bg-white rounded-lg shadow-xl border border-slate-200 z-[100] p-3">
+                                                                <div class="text-xs font-semibold text-slate-700 mb-2">关联表：</div>
+                                                                <div class="space-y-1 max-h-48 overflow-y-auto">
+                                                                    <div v-for="table in rule.appliedTableList" :key="table.id || table.name"
+                                                                        class="px-2 py-1.5 text-xs text-slate-600 flex items-center gap-2 hover:bg-slate-50 rounded">
+                                                                        <i class="ph ph-table text-blue-600"></i>
+                                                                        <span class="flex-1">{{ table.name }}</span>
+                                                                        <span v-if="table.env === 'online'" class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">ONLINE</span>
+                                                                        <span v-else-if="table.env === 'pre'" class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200">PRE</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <button @click="toggleMergedRowRuleEnabled(rule)"
+                                                            class="px-2 py-1 rounded-full text-[10px] font-medium transition-all flex items-center inline-flex gap-1.5 border shadow-sm"
+                                                            :class="rule.enabled ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'">
+                                                            <div class="w-1.5 h-1.5 rounded-full" :class="rule.enabled ? 'bg-green-500 animate-pulse' : 'bg-slate-400'"></div>
+                                                            {{ rule.enabled ? '已启用' : '已禁用' }}
+                                                        </button>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-right">
+                                                        <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button @click="openRowRuleEdit(index)" class="text-slate-400 hover:text-indigo-600 transition-colors">
+                                                                <i class="ph ph-pencil-simple"></i>
+                                                            </button>
+                                                            <button @click="deleteMergedRowRule(index)" class="text-slate-400 hover:text-red-600 transition-colors">
+                                                                <i class="ph ph-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1468,7 +1828,9 @@
                         <component :is="currentDetailComponent" :key="selectedNode.id" :node="selectedNode"
                             :dictionaries="dictionaries" :eligible-catalogs="eligibleCatalogs"
                             :top-level-catalog-name="topLevelCatalogName"
-                            :global-tags="globalTags">
+                            :global-tags="globalTags"
+                            :classification-tree="classificationTree"
+                            :classification-options="classificationOptions">
                         </component>
                     </div>
 
@@ -1489,6 +1851,7 @@
             </div>
 
         </main>
+        </div><!-- end body flex row -->
     <!-- ========== BOT DRAWER ========== -->
     <div v-show="showBotDrawer" style="position:fixed;top:0;right:0;bottom:0;width:400px;z-index:200;background:#fff;border-left:1px solid #e2e8f0;box-shadow:-4px 0 24px rgba(0,0,0,0.10);display:flex;flex-direction:column;">
 
@@ -1623,16 +1986,661 @@
     </div>
 
 
-        <!-- Global Rule Edit Modal -->
-        <permission-rule-edit-modal v-if="showGlobalRuleEdit" :visible="showGlobalRuleEdit"
-            :editing-rule="editingGlobalRule" :editing-index="editingGlobalRuleIndex" :auth-rules="globalAuthRules"
-            :is-global="true" :available-tags="availableTags" @close="closeGlobalRuleEdit" @save="saveGlobalRule"
-            @update:show-audience-dropdown="showAudienceDropdown = $event" @select-audience="selectAudience"
-            @add-row-filter="addGlobalRuleRowFilter" @remove-row-filter="removeGlobalRuleRowFilter"
-            @toggle-column-field="toggleGlobalRuleColumnField">
-        </permission-rule-edit-modal>
+        <!-- 行权限规则编辑弹窗 -->
+        <div v-if="showRowRuleEditModal" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" @click.self="closeRowRuleEdit">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+                <!-- 头部 -->
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                    <h3 class="text-base font-semibold text-slate-900">
+                        {{ editingRowRuleIndex === -1 ? '新建行权限规则' : '编辑行权限规则 · ' + editingRowRule.name }}
+                    </h3>
+                    <button @click="closeRowRuleEdit" class="p-1 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-lg"></i></button>
+                </div>
+                <!-- 内容 -->
+                <div class="p-5 overflow-y-auto flex-1 space-y-5">
+                    <!-- 规则名称 -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">规则名称 <span class="text-red-500">*</span></label>
+                        <input v-model="editingRowRule.name" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="例如：部门数据隔离" />
+                    </div>
 
-        <!-- Permission Popover -->
+                    <!-- 规则类型选择（仅新建时可选，编辑时不可更改） -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">规则类型 <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button @click="editingRowRule.ruleType = 'subquery'"
+                                :disabled="editingRowRuleIndex !== -1"
+                                :class="['px-4 py-3 border-2 rounded-lg text-sm font-medium transition-all flex items-center gap-3', editingRowRule.ruleType === 'subquery' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 hover:border-blue-300 text-slate-700', editingRowRuleIndex !== -1 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer']">
+                                <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                                    <i class="ph ph-function text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium">子查询</div>
+                                    <div class="text-xs text-slate-500">通过 SQL 子查询定义行过滤范围</div>
+                                </div>
+                            </button>
+                            <button @click="editingRowRule.ruleType = 'tag_rule'"
+                                :disabled="editingRowRuleIndex !== -1"
+                                :class="['px-4 py-3 border-2 rounded-lg text-sm font-medium transition-all flex items-center gap-3', editingRowRule.ruleType === 'tag_rule' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 hover:border-amber-300 text-slate-700', editingRowRuleIndex !== -1 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer']">
+                                <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                                    <i class="ph ph-tag text-amber-600"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium">标签规则</div>
+                                    <div class="text-xs text-slate-500">通过治理标签条件定义行过滤规则</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 子查询类型内容 -->
+                    <template v-if="editingRowRule.ruleType === 'subquery'">
+                        <!-- Code（自动生成） -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Code</label>
+                            <div class="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm font-mono text-slate-500 select-none cursor-not-allowed min-h-[42px] flex items-center">
+                                <span v-if="editingRowRule.code">{{ editingRowRule.code }}</span>
+                                <span v-else class="text-slate-400 italic">根据名称自动生成</span>
+                            </div>
+                        </div>
+                        <!-- SQL 编辑器 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">SQL <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <textarea v-model="editingRowRule.sql" rows="7"
+                                    placeholder="输入 SQL 查询语句..."
+                                    class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm font-mono bg-slate-900 text-slate-100 resize-none focus:ring-2 focus:ring-indigo-500 transition-all leading-relaxed"></textarea>
+                                <button @click="executeRowRuleSql" type="button"
+                                    class="absolute top-2 right-2 px-3 py-1 bg-indigo-600 text-white rounded text-xs font-medium hover:bg-indigo-700 transition-colors">
+                                    执行
+                                </button>
+                            </div>
+                            <!-- 执行结果 -->
+                            <div v-if="rowRuleSqlValidation" class="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+                                :class="rowRuleSqlValidation.success ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'">
+                                <i :class="['text-base flex-shrink-0 mt-0.5', rowRuleSqlValidation.success ? 'ph ph-check-circle' : 'ph ph-x-circle']"></i>
+                                <span>{{ rowRuleSqlValidation.message }}</span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 标签规则类型内容 -->
+                    <template v-if="editingRowRule.ruleType === 'tag_rule'">
+                        <!-- 条件配置 -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider">标签配置</label>
+                                <button @click="addRowRuleRowFilter" class="px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 rounded flex items-center gap-1">
+                                    <i class="ph ph-plus"></i> 添加条件
+                                </button>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="(filter, index) in editingRowRule.rowFilters" :key="index" class="flex items-start gap-2">
+                                    <div class="w-6 h-9 flex items-center justify-center text-xs font-medium text-slate-500 flex-shrink-0">
+                                        {{ index + 1 }}
+                                    </div>
+                                    <div class="flex-1 grid grid-cols-12 gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                                        <select v-model="filter.field" class="col-span-3 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                            <option value="">选择标签</option>
+                                            <option v-for="tag in availableTags" :key="tag" :value="tag">{{ tag }}</option>
+                                        </select>
+                                        <select v-model="filter.operator" class="col-span-2 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                            <option value="=">=</option>
+                                            <option value="!=">!=</option>
+                                            <option value=">">&gt;</option>
+                                            <option value="<">&lt;</option>
+                                            <option value=">=">&gt;=</option>
+                                            <option value="<=">&lt;=</option>
+                                            <option value="IN">IN</option>
+                                            <option value="NOT IN">NOT IN</option>
+                                        </select>
+                                        <select v-model="filter.valueType" class="col-span-2 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                            <option value="literal">字面值</option>
+                                            <option value="env_var">环境变量</option>
+                                            <option v-if="filter.operator === 'IN' || filter.operator === 'NOT IN'" value="subquery">子查询</option>
+                                        </select>
+                                        <input v-model="filter.value" type="text" class="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="输入值" />
+                                    </div>
+                                    <button @click="removeRowRuleRowFilter(index)" class="w-9 h-9 flex items-center justify-center text-red-600 hover:bg-red-50 rounded flex-shrink-0">
+                                        <i class="ph ph-trash text-base"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p v-if="editingRowRule.rowFilters.length === 0" class="mt-2 text-sm text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                                无标签配置条件
+                            </p>
+                            <div v-else class="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                <label class="block text-xs font-medium text-slate-700 mb-2">条件间的组合关系</label>
+                                <input v-model="editingRowRule.conditionLogic"
+                                    type="text"
+                                    class="w-full px-3 py-2 border border-slate-300 rounded text-sm font-mono bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="例如：1 AND 2 OR 3" />
+                                <p class="mt-2 text-xs text-slate-500">
+                                    <i class="ph ph-info text-blue-500"></i>
+                                    使用条件序号（{{ editingRowRule.rowFilters.map((f, i) => i + 1).join(', ') }}）和逻辑运算符（AND、OR）来组合条件，支持括号。留空则默认为全部 AND 组合。
+                                </p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <!-- 底部 -->
+                <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0">
+                    <div>
+                        <button v-if="editingRowRuleIndex !== -1" @click="deleteMergedRowRule(editingRowRuleIndex)"
+                            class="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm transition-colors flex items-center gap-1.5 font-medium">
+                            <i class="ph ph-trash"></i>
+                            删除规则
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button @click="closeRowRuleEdit"
+                            class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm">取消</button>
+                        <button @click="saveRowRuleEdit"
+                            :disabled="!editingRowRule.name.trim() || (editingRowRule.ruleType === 'subquery' && !rowRuleSqlExecuted)"
+                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm shadow-indigo-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                            {{ editingRowRuleIndex === -1 ? '保存' : '完成修改' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- 新增权限资源点弹窗 -->
+        <div v-if="showAddResourcePointModal" class="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center" @click.self="closeAddResourcePointModal">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col">
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                    <h3 class="text-base font-semibold text-slate-900">新增权限资源点</h3>
+                    <button @click="closeAddResourcePointModal" class="p-1 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-lg"></i></button>
+                </div>
+                <div class="p-5 overflow-y-auto flex-1">
+                    <!-- 权限点树选择视图 -->
+                    <div v-if="!showBatchImportView">
+                        <p class="text-xs text-slate-500 mb-3">选择父级将自动勾选所有子级，已被包含的资源点默认勾选。也可新增父级或子级。</p>
+
+                        <!-- 操作按钮行 -->
+                        <div class="mb-3 flex items-center gap-2">
+                            <button @click="showAddParentInput"
+                                class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1">
+                                <i class="ph ph-plus text-xs"></i> 新增父级
+                            </button>
+                            <button @click="openBatchImportModal('resourcePointModal')"
+                                class="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1 border border-slate-200">
+                                <i class="ph ph-file-text text-xs"></i> 批量新增
+                            </button>
+                        </div>
+
+                        <div class="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                            <div class="max-h-64 overflow-y-auto p-3">
+                                <!-- 新增父级输入框（在树最上面） -->
+                                <div v-if="showNewParentInput" class="mb-2 flex items-center gap-2 px-2 py-1.5 bg-indigo-50 rounded-lg border border-indigo-200">
+                                    <input v-model="newParentName" type="text"
+                                        @keyup.enter="addPermissionPointParent"
+                                        @keyup.escape="cancelAddParent"
+                                        class="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                                        placeholder="输入新父级名称，如：薪酬信息" />
+                                    <button @click="addPermissionPointParent" :disabled="!newParentName.trim()"
+                                        class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500">
+                                        <i class="ph ph-check"></i>
+                                    </button>
+                                    <button @click="cancelAddParent" class="px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 rounded">
+                                        <i class="ph ph-x"></i>
+                                    </button>
+                                </div>
+                                <div v-for="node in permissionPointTree" :key="node.id" class="mb-2">
+                                    <!-- 父级：带复选框 + 操作按钮 -->
+                                    <div class="flex items-center gap-2 group">
+                                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer font-medium flex-1">
+                                            <input type="checkbox"
+                                                :checked="isAddResourceParentFullyChecked(node)"
+                                                :indeterminate.prop="isAddResourceParentIndeterminate(node)"
+                                                @change="toggleAddResourceParent(node)"
+                                                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                                            <!-- 重命名状态 -->
+                                            <template v-if="renamingNodeId === node.id">
+                                                <input v-model="renamingNodeName"
+                                                    @keyup.enter="confirmRenameNode"
+                                                    @keyup.escape="cancelRenameNode"
+                                                    class="text-sm text-slate-800 px-1 py-0.5 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                                                    style="min-width: 80px;" />
+                                                <button @click="confirmRenameNode" class="p-0.5 text-indigo-600 hover:text-indigo-700"><i class="ph ph-check text-xs"></i></button>
+                                                <button @click="cancelRenameNode" class="p-0.5 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-xs"></i></button>
+                                            </template>
+                                            <template v-else>
+                                                <span class="text-sm text-slate-800">{{ node.name }}</span>
+                                            </template>
+                                            <span v-if="isAddResourceParentFullyChecked(node)" class="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">全部</span>
+                                            <span v-else-if="isAddResourceParentIndeterminate(node)" class="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">部分</span>
+                                        </label>
+                                        <!-- 父级操作按钮 -->
+                                        <div class="flex items-center gap-0.5">
+                                            <button @click="addChildToParent(node.id)"
+                                                class="p-1 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded text-xs" title="新增子级">
+                                                <i class="ph ph-plus text-xs"></i>
+                                            </button>
+                                            <button v-if="renamingNodeId !== node.id" @click="startRenameNode(node.id, node.name, 'parent')"
+                                                class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded text-xs" title="重命名">
+                                                <i class="ph ph-pencil-simple text-xs"></i>
+                                            </button>
+                                            <button @click="deletePermissionPointNode(node.id, 'parent')"
+                                                class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded text-xs" title="删除">
+                                                <i class="ph ph-trash text-xs"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <!-- 新增子级输入框 -->
+                                    <div v-if="addingChildToParentId === node.id" class="ml-6 mt-1 flex items-center gap-2 px-2 py-1.5 bg-indigo-50/50 rounded-lg">
+                                        <input v-model="newChildName" type="text"
+                                            @keyup.enter="confirmAddChild"
+                                            @keyup.escape="cancelAddChild"
+                                            class="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                                            placeholder="输入子级名称" />
+                                        <button @click="confirmAddChild" :disabled="!newChildName.trim()"
+                                            class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500">
+                                            <i class="ph ph-check"></i>
+                                        </button>
+                                        <button @click="cancelAddChild" class="px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 rounded">
+                                            <i class="ph ph-x"></i>
+                                        </button>
+                                    </div>
+                                    <!-- 子级 -->
+                                    <div v-if="node.children && node.children.length > 0" class="space-y-0.5 ml-6">
+                                        <div v-for="child in node.children" :key="child.id" class="flex items-center gap-2 group/child">
+                                            <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50 cursor-pointer flex-1">
+                                                <input type="checkbox"
+                                                    :checked="addingResourcePoints.includes(node.name + '/' + child.name)"
+                                                    @change="toggleAddResourcePoint(node.name + '/' + child.name)"
+                                                    class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                                                <!-- 重命名状态 -->
+                                                <template v-if="renamingNodeId === child.id">
+                                                    <input v-model="renamingNodeName"
+                                                        @keyup.enter="confirmRenameNode"
+                                                        @keyup.escape="cancelRenameNode"
+                                                        class="text-sm text-slate-600 px-1 py-0.5 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                                                        style="min-width: 60px;" />
+                                                    <button @click="confirmRenameNode" class="p-0.5 text-indigo-600 hover:text-indigo-700"><i class="ph ph-check text-[10px]"></i></button>
+                                                    <button @click="cancelRenameNode" class="p-0.5 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-[10px]"></i></button>
+                                                </template>
+                                                <template v-else>
+                                                    <span class="text-sm text-slate-600">{{ child.name }}</span>
+                                                </template>
+                                            </label>
+                                            <!-- 子级操作按钮 -->
+                                            <div class="flex items-center gap-0.5">
+                                                <button v-if="renamingNodeId !== child.id" @click="startRenameNode(child.id, child.name, 'child')"
+                                                    class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded text-[10px]" title="重命名">
+                                                    <i class="ph ph-pencil-simple text-[10px]"></i>
+                                                </button>
+                                                <button @click="deletePermissionPointNode(child.id, 'child')"
+                                                    class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded text-[10px]" title="删除">
+                                                    <i class="ph ph-trash text-[10px]"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="permissionPointTree.length === 0 && !showNewParentInput" class="px-4 py-6 text-center text-slate-400">
+                                    <p class="text-xs">暂无权限点，请先新增父级</p>
+                                </div>
+                            </div>
+                            <div v-if="addingResourcePoints.length > 0" class="px-4 py-2 bg-slate-50 border-t border-slate-200">
+                                <p class="text-[11px] text-slate-500">
+                                    已选择 <span class="text-indigo-600 font-bold">{{ addingResourcePoints.length }}</span> 个资源点
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 批量导入视图 -->
+                    <div v-else>
+                        <p class="text-xs text-slate-500 mb-3">导入 CSV/Excel 文件，数据结构为「父级权限点」和「子级权限点」两列。导入完成后自动回到选择视图。</p>
+                        <button @click="exitBatchImportView"
+                            class="mb-3 px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1 border border-slate-200">
+                            <i class="ph ph-arrow-left text-xs"></i> 返回选择权限点
+                        </button>
+                        <!-- 文件上传区域 -->
+                        <div class="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center hover:border-indigo-300 transition-colors cursor-pointer relative">
+                            <input type="file" accept=".csv,.xlsx,.xls,.txt" @change="handleBatchImportFile"
+                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                            <i class="ph ph-upload text-3xl text-slate-300 block mb-2"></i>
+                            <p class="text-sm text-slate-600 font-medium">点击或拖拽上传文件</p>
+                            <p class="text-xs text-slate-400 mt-1">支持 CSV / Excel (.xlsx) / TXT 格式</p>
+                        </div>
+                        <!-- 已上传的文件名 -->
+                        <div v-if="batchImportFile" class="mt-3 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                            <i class="ph ph-file text-indigo-500"></i>
+                            <span class="text-sm text-slate-700 font-medium">{{ batchImportFile.name }}</span>
+                            <span class="text-xs text-slate-400">({{ (batchImportFile.size / 1024).toFixed(1) }} KB)</span>
+                        </div>
+                        <!-- 数据格式说明 -->
+                        <div class="mt-3 bg-slate-50 rounded-lg border border-slate-200 p-4">
+                            <h4 class="text-sm font-medium text-slate-700 mb-2">数据格式说明</h4>
+                            <table class="min-w-full text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200">
+                                        <th class="px-3 py-1.5 text-left text-slate-500 font-medium">父级权限点</th>
+                                        <th class="px-3 py-1.5 text-left text-slate-500 font-medium">子级权限点</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-slate-100">
+                                        <td class="px-3 py-1.5 text-slate-600">基础信息</td>
+                                        <td class="px-3 py-1.5 text-slate-600">员工工号</td>
+                                    </tr>
+                                    <tr class="border-b border-slate-100">
+                                        <td class="px-3 py-1.5 text-slate-600">基础信息</td>
+                                        <td class="px-3 py-1.5 text-slate-600">员工姓名</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-3 py-1.5 text-slate-600">薪酬信息</td>
+                                        <td class="px-3 py-1.5 text-slate-600">基本工资</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p class="text-xs text-slate-400 mt-2">同父级的多个子级，父级列重复填写即可</p>
+                        </div>
+                        <!-- 预览表格 -->
+                        <div v-if="batchImportPreview.length > 0" class="mt-3">
+                            <h4 class="text-sm font-medium text-slate-700 mb-2">
+                                数据预览 <span class="text-xs text-slate-400">(共 {{ batchImportPreview.length }} 条)</span>
+                            </h4>
+                            <div class="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                                <table class="min-w-full text-xs">
+                                    <thead class="bg-slate-50 border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left text-slate-500 font-medium">#</th>
+                                            <th class="px-3 py-2 text-left text-slate-500 font-medium">父级权限点</th>
+                                            <th class="px-3 py-2 text-left text-slate-500 font-medium">子级权限点</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr v-for="(item, idx) in batchImportPreview" :key="idx" class="hover:bg-slate-50/50">
+                                            <td class="px-3 py-1.5 text-slate-400">{{ idx + 1 }}</td>
+                                            <td class="px-3 py-1.5 text-slate-700 font-medium">{{ item.parentName }}</td>
+                                            <td class="px-3 py-1.5 text-slate-600">{{ item.childName }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- 空提示 -->
+                        <div v-if="batchImportFile && batchImportPreview.length === 0" class="mt-3 text-center text-amber-600 py-4">
+                            <i class="ph ph-warning text-2xl block mb-2"></i>
+                            <p class="text-sm">未解析到有效的权限点数据，请检查文件格式</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-end gap-2 flex-shrink-0">
+                    <button @click="closeAddResourcePointModal" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm">取消</button>
+                    <button @click="saveAddedResourcePoints"
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm shadow-indigo-100 transition-all">
+                        确认添加
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 权限点子查询新建弹窗 -->
+        <div v-if="showPermissionPointSubqueryModal" class="fixed inset-0 bg-black/30 z-[200] flex items-center justify-center" @click.self="closePermissionPointSubqueryModal">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                    <h3 class="text-base font-semibold text-slate-900">新建子查询</h3>
+                    <button @click="closePermissionPointSubqueryModal" class="p-1 text-slate-400 hover:text-slate-600"><i class="ph ph-x text-lg"></i></button>
+                </div>
+                <div class="p-5 space-y-4 flex-1 overflow-y-auto">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">名称</label>
+                        <input v-model="permissionPointNewSubqueryForm.name" type="text" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="子查询名称" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">SQL 语句</label>
+                        <textarea v-model="permissionPointNewSubqueryForm.sql" rows="6" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="SELECT user_id FROM ..."></textarea>
+                    </div>
+                </div>
+                <div class="px-5 py-4 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+                    <button @click="closePermissionPointSubqueryModal" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm">取消</button>
+                    <button @click="savePermissionPointSubquery" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- UDF 新建子查询弹窗 -->
+        <div v-if="showUdfSubqueryModal" class="fixed inset-0 bg-black/30 z-[200] flex items-center justify-center" @click.self="closeUdfSubqueryModal">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+                <!-- 头部 -->
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-indigo-50 to-slate-50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                            <i class="ph ph-database text-base"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">新建子查询</h3>
+                            <p class="text-[11px] text-slate-500">执行成功后才可保存并启用</p>
+                        </div>
+                    </div>
+                    <button @click="closeUdfSubqueryModal" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-white/60 rounded-lg transition-colors">
+                        <i class="ph ph-x text-lg"></i>
+                    </button>
+                </div>
+                <!-- 内容 -->
+                <div class="flex-1 overflow-y-auto p-5">
+                    <div class="space-y-4">
+                        <!-- 子查询名称 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2"><span class="text-red-500">*</span> 子查询名称</label>
+                            <input v-model="udfSubqueryForm.name" type="text" placeholder="例如：活跃用户列表"
+                                class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" />
+                        </div>
+                        <!-- Code（自动生成） -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Code</label>
+                            <div class="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm font-mono text-slate-500 select-none cursor-not-allowed min-h-[42px] flex items-center">
+                                <span v-if="udfSubqueryForm.code">{{ udfSubqueryForm.code }}</span>
+                                <span v-else class="text-slate-400 italic">根据名称自动生成</span>
+                            </div>
+                        </div>
+                        <!-- SQL 编辑器 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">SQL</label>
+                            <div class="relative">
+                                <textarea v-model="udfSubqueryForm.sql" rows="7"
+                                    placeholder="输入 SQL 查询语句..."
+                                    class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm font-mono bg-slate-900 text-slate-100 resize-none focus:ring-2 focus:ring-indigo-500 transition-all leading-relaxed"></textarea>
+                                <button @click="executeUdfSql" type="button"
+                                    class="absolute top-2 right-2 px-3 py-1 bg-indigo-600 text-white rounded text-xs font-medium hover:bg-indigo-700 transition-colors">
+                                    执行
+                                </button>
+                            </div>
+                            <!-- 执行结果 -->
+                            <div v-if="udfSubqueryValidation" class="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+                                :class="udfSubqueryValidation.success ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'">
+                                <i :class="['text-base flex-shrink-0 mt-0.5', udfSubqueryValidation.success ? 'ph ph-check-circle' : 'ph ph-x-circle']"></i>
+                                <span>{{ udfSubqueryValidation.message }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 底部 -->
+                <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50">
+                    <button @click="closeUdfSubqueryModal" type="button"
+                        class="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg text-sm transition-colors">
+                        取消
+                    </button>
+                    <button @click="saveUdfSubquery" type="button"
+                        :disabled="!udfSubqueryForm.name.trim() || !udfSubqueryExecuted"
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                        保存并启用
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- UDF 新建函数弹窗 -->
+        <div v-if="showUdfFunctionModal" class="fixed inset-0 bg-black/30 z-[200] flex items-center justify-center" @click.self="closeUdfFunctionModal">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+                <!-- 头部 -->
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-violet-50 to-slate-50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-md">
+                            <i class="ph ph-function text-base"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">新建函数</h3>
+                            <p class="text-[11px] text-slate-500">执行成功后才可保存并启用</p>
+                        </div>
+                    </div>
+                    <button @click="closeUdfFunctionModal" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-white/60 rounded-lg transition-colors">
+                        <i class="ph ph-x text-lg"></i>
+                    </button>
+                </div>
+                <!-- 内容 -->
+                <div class="flex-1 overflow-y-auto p-5">
+                    <div class="space-y-5">
+                        <!-- 函数名称 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2"><span class="text-red-500">*</span> 函数名称</label>
+                            <input v-model="udfFunctionForm.name" type="text" placeholder="例如：获取用户部门"
+                                class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all" />
+                        </div>
+                        <!-- Code（自动生成） -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Code <span class="text-xs text-slate-400 font-normal">自动生成，不可修改</span></label>
+                            <div class="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm font-mono text-slate-500 select-none cursor-not-allowed min-h-[42px] flex items-center">
+                                <span v-if="udfFunctionForm.code">{{ udfFunctionForm.code }}</span>
+                                <span v-else class="text-slate-400 italic">根据名称自动生成</span>
+                            </div>
+                        </div>
+                        <!-- 类型 -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2"><span class="text-red-500">*</span> 类型</label>
+                            <div class="flex gap-3">
+                                <button @click="udfFunctionForm.udfType = '圈人'"
+                                    :class="['flex-1 px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2',
+                                        udfFunctionForm.udfType === '圈人' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-slate-200 hover:border-purple-300 text-slate-700']">
+                                    <i class="ph ph-users"></i> 圈人
+                                </button>
+                                <button @click="udfFunctionForm.udfType = '行权限'"
+                                    :class="['flex-1 px-4 py-2.5 border-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2',
+                                        udfFunctionForm.udfType === '行权限' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 hover:border-blue-300 text-slate-700']">
+                                    <i class="ph ph-rows"></i> 行权限
+                                </button>
+                            </div>
+                        </div>
+                        <!-- 参数列表 -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-slate-700"><span class="text-red-500">*</span> 参数列表</label>
+                                <button @click="addFunctionParam" type="button"
+                                    class="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1 px-2 py-1 hover:bg-violet-50 rounded transition-colors">
+                                    <i class="ph ph-plus-circle"></i> 添加参数
+                                </button>
+                            </div>
+                            <div v-if="udfFunctionForm.params.length === 0" class="text-xs text-slate-400 py-3 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50">
+                                暂无参数，点击「添加参数」
+                            </div>
+                            <div v-else class="border border-slate-200 rounded-lg overflow-hidden">
+                                <table class="min-w-full">
+                                    <thead class="bg-slate-50 border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-slate-500">参数名</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-slate-500">数据类型</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-slate-500">说明（选填）</th>
+                                            <th class="w-8"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr v-for="(param, pi) in udfFunctionForm.params" :key="pi">
+                                            <td class="px-3 py-2">
+                                                <input v-model="param.name" type="text" placeholder="user_id"
+                                                    class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs font-mono focus:ring-1 focus:ring-violet-500 focus:border-transparent" />
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <select v-model="param.type"
+                                                    class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white focus:ring-1 focus:ring-violet-500 focus:border-transparent">
+                                                    <option value="STRING">STRING</option>
+                                                    <option value="INT">INT</option>
+                                                    <option value="BIGINT">BIGINT</option>
+                                                    <option value="DOUBLE">DOUBLE</option>
+                                                    <option value="BOOLEAN">BOOLEAN</option>
+                                                    <option value="ARRAY">ARRAY</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <input v-model="param.description" type="text" placeholder="说明（选填）"
+                                                    class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-violet-500 focus:border-transparent" />
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                <button @click="removeFunctionParam(pi)" type="button" class="text-slate-300 hover:text-red-500 transition-colors">
+                                                    <i class="ph ph-x-circle text-base"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p v-if="udfFunctionForm.params.length > 0" class="mt-1 text-xs text-slate-400">可在 SQL 中通过 <code class="font-mono bg-slate-100 px-1 rounded">${参数名}</code> 引用参数</p>
+                        </div>
+                        <!-- SQL -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2"><span class="text-red-500">*</span> SQL</label>
+                            <div class="relative">
+                                <textarea v-model="udfFunctionForm.sql" rows="7"
+                                    placeholder="输入 SQL 函数体...&#10;&#10;-- 可用 ${user_id} 引用参数&#10;SELECT dept_id FROM hr_user WHERE user_id = ${user_id}"
+                                    class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm font-mono bg-slate-900 text-slate-100 resize-none focus:ring-2 focus:ring-violet-500 transition-all leading-relaxed"></textarea>
+                                <button @click="executeUdfFunction" type="button"
+                                    class="absolute top-2 right-2 px-3 py-1 bg-violet-600 text-white rounded text-xs font-medium hover:bg-violet-700 transition-colors">
+                                    执行
+                                </button>
+                            </div>
+                            <!-- 执行结果 -->
+                            <div v-if="udfFunctionValidation" class="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+                                :class="udfFunctionValidation.success ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'">
+                                <i :class="['text-base flex-shrink-0 mt-0.5', udfFunctionValidation.success ? 'ph ph-check-circle' : 'ph ph-x-circle']"></i>
+                                <span>{{ udfFunctionValidation.message }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 底部 -->
+                <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50">
+                    <button @click="closeUdfFunctionModal" type="button"
+                        class="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg text-sm transition-colors">
+                        取消
+                    </button>
+                    <button @click="saveUdfFunction" type="button"
+                        :disabled="!udfFunctionForm.name.trim() || !udfFunctionExecuted"
+                        class="px-6 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                        保存并启用
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 函数执行参数填写弹框 -->
+        <div v-if="showUdfExecParamsModal" class="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center" @click.self="showUdfExecParamsModal = false">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4">
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900">请输入测试参数值</h3>
+                    <button @click="showUdfExecParamsModal = false" class="p-1 text-slate-400 hover:text-slate-600 rounded">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div class="p-5 space-y-3">
+                    <div v-for="(_, paramName) in udfExecParamValues" :key="paramName" class="flex items-center gap-3">
+                        <label class="text-sm font-mono text-slate-700 w-28 flex-shrink-0">{{ paramName }}:</label>
+                        <input v-model="udfExecParamValues[paramName]" type="text" :placeholder="'请输入测试值'"
+                            class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+                    </div>
+                </div>
+                <div class="px-5 py-4 border-t border-slate-200 flex justify-end">
+                    <button @click="runUdfFunctionExec" type="button"
+                        class="px-6 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm">
+                        确认执行
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div v-if="showPermissionPopover" @click="closePopovers"
             class="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
             <div @click.stop class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
@@ -1667,6 +2675,15 @@
                                     <div class="flex-1 min-w-0">
                                         <p class="text-sm font-medium text-slate-900">{{ permission.name }}</p>
                                         <p class="text-xs text-slate-500">{{ permission.email }}</p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span :class="['inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium rounded-full',
+                                                           permission.validityType === 'permanent' || !permission.expiryDate || new Date(permission.expiryDate) > new Date() ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700']">
+                                                <i :class="['ph text-[10px]', permission.validityType === 'permanent' || !permission.expiryDate || new Date(permission.expiryDate) > new Date() ? 'ph-check-circle' : 'ph-warning-circle']"></i>
+                                                {{ permission.validityType === 'permanent' || !permission.expiryDate || new Date(permission.expiryDate) > new Date() ? '生效中' : '已过期' }}
+                                            </span>
+                                            <span v-if="permission.validityType === 'permanent'" class="text-[11px] text-slate-400">长期有效</span>
+                                            <span v-else-if="permission.expiryDate" class="text-[11px] text-slate-400">至 {{ permission.expiryDate }}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2 ml-auto">
@@ -1806,6 +2823,84 @@
                                 <i v-if="selectedPermissionRole === 'viewer'"
                                     class="ph-fill ph-check-circle text-slate-600"></i>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- 授权有效期 -->
+                    <div class="border-t border-slate-200 pt-4 mt-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">授权有效期 <span
+                                class="text-red-500">*</span></label>
+                        
+                        <!-- 有效期类型选择 -->
+                        <div class="space-y-3">
+                            <!-- 快捷选择 -->
+                            <div class="flex items-center gap-2">
+                                <button @click="selectValidityType('permanent')" type="button"
+                                    :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                             selectedValidityType === 'permanent' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                    长期有效
+                                </button>
+                                <button @click="selectValidityType('30d')" type="button"
+                                    :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                             selectedValidityType === '30d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                    30天
+                                </button>
+                                <button @click="selectValidityType('90d')" type="button"
+                                    :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                             selectedValidityType === '90d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                    90天
+                                </button>
+                                <button @click="selectValidityType('180d')" type="button"
+                                    :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                             selectedValidityType === '180d' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                    180天
+                                </button>
+                                <button @click="selectValidityType('custom')" type="button"
+                                    :class="['px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                                             selectedValidityType === 'custom' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300']">
+                                    自定义时间
+                                </button>
+                            </div>
+
+                            <!-- 长期有效提示 -->
+                            <div v-if="selectedValidityType === 'permanent'"
+                                class="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100/50 text-xs">
+                                <i class="ph ph-infinity text-sm"></i>
+                                <span>授权长期有效，无过期时间</span>
+                            </div>
+
+                            <!-- 快捷选择计算结果 -->
+                            <div v-if="selectedValidityType === '30d' || selectedValidityType === '90d' || selectedValidityType === '180d'"
+                                class="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100/50 text-xs">
+                                <i class="ph ph-calendar text-sm"></i>
+                                <span>有效期至 {{ computedExpiryDate }}</span>
+                            </div>
+
+                            <!-- 自定义时间范围选择 -->
+                            <div v-if="selectedValidityType === 'custom'" class="space-y-2">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-1">
+                                        <label class="block text-xs text-slate-500 mb-1">开始时间</label>
+                                        <input v-model="validityStartDate" type="date"
+                                            class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                                    </div>
+                                    <div class="flex-1">
+                                        <label class="block text-xs text-slate-500 mb-1">截止时间</label>
+                                        <input v-model="validityEndDate" type="date"
+                                            class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                                    </div>
+                                </div>
+                                <div v-if="validityStartDate && validityEndDate && new Date(validityEndDate) <= new Date(validityStartDate)"
+                                    class="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg border border-red-100/50 text-xs">
+                                    <i class="ph ph-warning text-sm"></i>
+                                    <span>截止时间必须大于开始时间</span>
+                                </div>
+                                <div v-if="validityStartDate && validityEndDate && new Date(validityEndDate) > new Date(validityStartDate)"
+                                    class="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100/50 text-xs">
+                                    <i class="ph ph-calendar text-sm"></i>
+                                    <span>有效期：{{ validityStartDate }} 至 {{ validityEndDate }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2238,11 +3333,50 @@
         <create-data-asset-wizard :visible="showCreateDataAssetWizard" :step="createDataAssetStep"
             :method="createDataAssetMethod" :form="createDataAssetForm" :data-source-tables="dataSourceTables"
             @close="closeCreateWizard" @back="goBackCreateWizard" @select-method="selectCreateMethod"
-            @preview="previewCreateView" @save="saveCreateDataAsset" @select-table="toggleTableSelection"
+            @preview="previewCreateView" @save="saveCreateDataAsset" @select-table="toggleCreateAssetTable"
             @update-field-description="updateFieldDescription"
             @update-view-field-description="updateViewFieldDescription" @file-upload="handleFileUpload"
             @select-sheet="selectSheet" @update-excel-field="updateExcelField" @next-step="proceedToFinalStep"
             @update:form="(val) => createDataAssetForm = val" />
+
+        <!-- 新建 UDF 对话框 -->
+        <div v-show="showCreateUdfDialog" @click="closeUdfDialog"
+            class="fixed inset-0 bg-black/30 z-[10000] flex items-center justify-center">
+            <div @click.stop class="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                    <h3 class="text-lg font-bold text-slate-900">新建 UDF</h3>
+                    <button @click.stop="closeUdfDialog" class="p-1 text-slate-400 hover:text-slate-600">
+                        <i class="ph ph-x text-xl"></i>
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div class="space-y-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2"><span class="text-red-500">*</span> 函数名</label>
+                                <input type="text" placeholder="mask_phone (小写+下划线)" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2"><span class="text-red-500">*</span> 返回类型</label>
+                                <select class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500">
+                                    <option>STRING</option><option>INT32</option><option>INT64</option><option>FLOAT</option><option>DOUBLE</option><option>DATE</option><option>TIMESTAMP</option><option>BOOLEAN</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">SQL 表达式</label>
+                            <textarea rows="6" class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm font-mono bg-slate-900 text-slate-100 resize-none focus:ring-2 focus:ring-indigo-500" placeholder="输入 SQL 表达式..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+                    <button @click.stop="closeUdfDialog" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm">取消</button>
+                    <button class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm">保存并启用</button>
+                </div>
+            </div>
+        </div>
+
+
 
         <!-- 调试面板 -->
         <div v-if="false"
@@ -2269,8 +3403,9 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="./js/mock_data.js?v=1774410156"></script>
+    <script src="./js/hr_mock_data.js"></script>
     <script src="./js/utils.js?v=1774410156"></script>
-    <script src="./js/templates.js?v=1774947000"></script>
+    <script src="./js/templates.js?v=1783900004"></script>
     <script src="./js/wiki_data.js?v=1774410156"></script>
     <script src="./js/skill_data.js?v=1774410156"></script>
     <script src="./js/components/TreeItem.js?v=1774410156"></script>
@@ -2278,7 +3413,7 @@
     <script src="./js/components/DetailFunction.js?v=1774410156"></script>
     <script src="./js/components/DetailSkill.js?v=1774410156"></script>
     <script src="./js/components/DetailDictionary.js?v=1774410156"></script>
-    <script src="./js/bundle.js?v=1774949100"></script>
+    <script src="./js/bundle.js?v=1783900004"></script>
 </body>
 
 </html>
